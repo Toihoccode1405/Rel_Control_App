@@ -1,0 +1,2 @@
+﻿id,project,phase,item,requester,test_type,quantity,cosmetic,cross_hatch,cross_section,function,control_number,chamber,condition,plan_in,plan_out,actual_in,actual_out,status,dri,log_file,log_link,note
+1,Co-Mold,P1,DOE,Linh PE,Waker,91,10,81,3,81,NTV-MQE-002#2,Temp&humi chamber #02,HS 85/85 72 Hrs,2025-12-11 13:23,2025-12-11 13:23,2025-12-11 13:23,2025-12-11 13:23,,Diện,,,

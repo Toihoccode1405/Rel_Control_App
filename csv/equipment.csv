@@ -1,0 +1,21 @@
+﻿Nhà máy,Mã Máy,Tên Máy,Thông số,Chương trình 1,Chương trình 2,Chương trình 3,Chương trình 4,Chương trình 5,Ghi chú
+Factory,Control Number,Equipment Name,Specification,Recipe 1,Recipe 2,Recipe 3,Recipe 4,Recipe 5,Remark
+Fab 2,NTV-MQE-002#1,Temp&humi chamber #01,"Temp: 50~ 120oC
+Humidity: 30% ~ 100%
+Cycling: N/A",65/90,85/85,THC,85C/20%RH,Fix test,
+Fab 2,NTV-MQE-002#2,Temp&humi chamber #02,"Temp: 50~ 120oC
+Humidity: 30% ~ 100%
+Cycling: N/A",65/90,85/85,THC,85C/20%RH,Fix test,
+Fab 2,NTV-MQE-002#3,Temp&humi chamber #03,"Temp: 50~ 120oC
+Humidity: 30% ~ 100%
+Cycling: N/A",65/90,85/85,THC,85C/20%RH,Fix test,
+Fab 2,NTV-MQE-002#4,Temp&humi chamber #04,"Temp: 50~ 120oC
+Humidity: 30% ~ 100%
+Cycling: N/A",65/90,85/85,THC,85C/20%RH,Fix test,
+Fab 2,NTV-MQE-001#1,Thermal shock chamber #01,"Temp: 50~ 120oC
+Humidity: 30% ~ 100%
+Cycling: N/A",-40~85°C,-40~125°C,-,-,-,
+Fab 2,NTV-MQE-001#2,Thermal shock chamber #02,"Temp: 50~ 120oC
+Humidity: 30% ~ 100%
+Cycling: N/A",-40~85°C,-40~125°C,-,-,-,
+Fab 2,NTV-MQE-006,Baking,,Fix test,,,,,

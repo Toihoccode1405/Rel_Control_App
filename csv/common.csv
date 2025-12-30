@@ -1,0 +1,12 @@
+﻿Nhà máy,Dự án,Giai đoạn,Phân loại,Phân Quyền,Phòng ban
+Factory,Project,Phase,Category,Author,Dept
+Fab1,Co-Molded,POC,Rel,Manager,PM
+Fab2,SE Jump,P1,FA,S.Engineer,PE
+,P26,P1.1,DOE,Engineer,PDE
+,,P1.2,,Technical,QA
+,,P2.1,,Operator,PQE
+,,P2.2,,,QC
+,,EVT,,,Rel/FA
+,,DVT,,,PMC
+,,PVT,,,
+,,MP,,,

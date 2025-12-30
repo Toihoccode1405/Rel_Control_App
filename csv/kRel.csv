@@ -1,0 +1,4 @@
+﻿Mã Yêu cầu,Ngày yêu cầu,Người yêu cầu,Nhà máy,Dự án,Giai đoạn,Hạng mục,Loại Test,Số lượng,Ngoại quan,Cross hatch,Cross section,Tính Năng,Mã Thiết bị,Tên Thiết bị,Điều kiện test,Ngày dự kiến vào,Ngày dự kiến ra,Trạng thái,Người thực hiện,Ngày thực tế vào,Ngày thực tế ra,Log file,Đường dẫn Logfile,Ghi chú
+Request NO,Request Date,Requester,Factory,Project,Phase,Category,Detail,Qty,Cos,Hcross,Xcross,Function,Equipment No,Equipment Name,Test Condition,Plan Start,Plan End,Status,DRI,Acutal Start,Actual End,Logfile,Link Logfile,Note
+2025.12.11-001,2025-12-11,Linh PE,Fab2,Co-Molded,P1,Rel,IPQC,91,10,81,3,81,NTV-MQE-002#1,Temp&humi chamber #01,HS 85/85 72 Hrs,25-10-20 09-30 AM,2025-10-23 14:30,Done,Diện,25-10-20 09-30 AM,25-10-23 02-30 PM,Yes,,
+2025.12.11-001,2025-12-11,Linh PE,Fab1,Co-Molded,P2.1,DOE,New Protect,91,10,81,3,81,NTV-MQE-002#2,Temp&humi chamber #02,HS 85/85 72 Hrs,25-10-20 09-30 AM,2025-10-23 14:30,Done,Diện,25-10-20 09-30 AM,25-10-23 02-30 PM,Yes,,
