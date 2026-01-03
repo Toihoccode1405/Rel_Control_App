@@ -7,21 +7,25 @@ from datetime import datetime
 
 from src.models.request import Request
 from src.services.database import get_db
+from src.services.logger import get_logger, log_audit
+
+# Module logger
+logger = get_logger("request")
 
 
 class RequestService:
     """Service for managing test requests"""
-    
+
     def create(self, request: Request) -> int:
         """
         Create new request
         Returns: new request ID
         """
         db = get_db()
-        
+
         columns = ", ".join(Request.DB_FIELDS)
         placeholders = ", ".join(["?"] * len(Request.DB_FIELDS))
-        
+
         with db.get_cursor() as cursor:
             cursor.execute(
                 f"INSERT INTO requests ({columns}) VALUES ({placeholders})",
@@ -30,8 +34,14 @@ class RequestService:
             # Get the new ID
             cursor.execute("SELECT @@IDENTITY")
             result = cursor.fetchone()
-            return result[0] if result else 0
-    
+            new_id = result[0] if result else 0
+
+        logger.info(f"Created request: {request.request_no} (ID: {new_id})")
+        log_audit("REQUEST_CREATE", user=request.requester,
+                  details=f"ID: {new_id}, Code: {request.request_no}")
+
+        return new_id
+
     def update(self, request: Request) -> bool:
         """
         Update existing request
@@ -39,23 +49,35 @@ class RequestService:
         """
         if not request.id:
             return False
-        
+
         db = get_db()
-        
+
         set_clause = ", ".join([f"{field} = ?" for field in Request.DB_FIELDS])
-        
+
         with db.get_cursor() as cursor:
             cursor.execute(
                 f"UPDATE requests SET {set_clause} WHERE id = ?",
                 (*request.to_insert_tuple(), request.id)
             )
+
+        logger.debug(f"Updated request ID: {request.id}")
         return True
-    
+
     def delete(self, request_id: int) -> bool:
         """Delete request by ID"""
         db = get_db()
+
+        # Get request info for logging
+        existing = self.get_by_id(request_id)
+        request_no = existing.request_no if existing else "unknown"
+
         with db.get_cursor() as cursor:
             cursor.execute("DELETE FROM requests WHERE id = ?", (request_id,))
+
+        logger.info(f"Deleted request ID: {request_id} (Code: {request_no})")
+        log_audit("REQUEST_DELETE", details=f"ID: {request_id}, Code: {request_no}")
+
+        return True
         return True
     
     def get_by_id(self, request_id: int) -> Optional[Request]:

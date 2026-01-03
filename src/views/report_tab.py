@@ -330,7 +330,7 @@ class ReportTab(QWidget):
 
         sql = """
             SELECT request_no, factory, project, phase, category, qty,
-                   requester, detail, cos_res, func_res, xhatch_res,
+                   requester, cos_res, func_res, xhatch_res,
                    xsection_res, final_res
             FROM requests WHERE 1=1
         """
@@ -348,7 +348,7 @@ class ReportTab(QWidget):
 
         headers = [
             "Mã YC", "Nhà máy", "Dự án", "Giai đoạn", "Hạng mục", "SL",
-            "Người YC", "Loại Test", "KQ N.Quan", "KQ T.Năng",
+            "Người YC", "KQ N.Quan", "KQ T.Năng",
             "KQ X-Hatch", "KQ X-Section", "KQ Cuối"
         ]
 
@@ -439,7 +439,7 @@ class ReportTab(QWidget):
 
         # Query
         sql = """
-            SELECT equip_no, request_no, detail, project, phase, category,
+            SELECT equip_no, request_no, project, phase, category,
                    requester, qty, plan_start, plan_end, actual_start, status, factory
             FROM requests
             WHERE equip_no IS NOT NULL AND equip_no != ''
@@ -571,7 +571,6 @@ class ReportTab(QWidget):
                     str(row.get('project', '')),
                     str(row.get('phase', '')),
                     str(row.get('category', '')),
-                    str(row.get('detail', '')),
                     str(row.get('qty', '')),
                     str(row.get('request_no', '')),
                     str(row.get('requester', ''))
@@ -579,10 +578,9 @@ class ReportTab(QWidget):
                 full_info = "_".join([s for s in info_parts if s != 'None' and s != ''])
 
                 cat_str = str(row.get('category', ''))
-                det_str = str(row.get('detail', ''))
-                bar_label = f"{cat_str}_{det_str}"
+                bar_label = cat_str
 
-                color = self._get_color(row['detail'])
+                color = self._get_color(row.get('category', ''))
                 rect = QRectF(x_bar, y_bar, w_bar, BAR_H)
 
                 bar_item = GanttBar(rect, full_info, color, self._on_bar_click)

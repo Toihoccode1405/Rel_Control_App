@@ -18,10 +18,14 @@ import pandas as pd
 
 from src.config import CONFIG_FILE, DEFAULT_LOG_PATH
 from src.services.database import get_db
+from src.services.logger import get_logger, log_audit
 from src.styles import (
     BTN_STYLE_BLUE, BTN_STYLE_GREEN_SOLID, BTN_STYLE_ORANGE_SOLID,
     TABLE_STYLE, TOOLBAR_FRAME_STYLE, FILTER_FRAME_STYLE
 )
+
+# Module logger
+logger = get_logger("edit_tab")
 
 
 # Status colors for row highlighting
@@ -33,6 +37,16 @@ STATUS_COLORS = {
     "Cancel": "#F3E5F5", "Not Start": "#FAFAFA"
 }
 DEFAULT_COLOR = "#FFFFFF"
+
+# Database columns to SELECT (excluding 'detail' field)
+DB_SELECT_COLS = [
+    "id", "request_no", "request_date", "requester", "factory", "project",
+    "phase", "category", "qty", "cos", "cos_res", "hcross",
+    "xhatch_res", "xcross", "xsection_res", "func_test", "func_res",
+    "final_res", "equip_no", "equip_name", "test_condition", "plan_start",
+    "plan_end", "status", "dri", "actual_start", "actual_end", "logfile",
+    "log_link", "note"
+]
 
 
 class ComboDelegate(QStyledItemDelegate):
@@ -95,10 +109,10 @@ class DateDelegate(QStyledItemDelegate):
 
 class RecipeDelegate(QStyledItemDelegate):
     """Delegate for recipe/test condition column"""
-    
+
     def createEditor(self, parent, option, index):
         model = index.model()
-        equip_idx = model.index(index.row(), 19)  # equip_no column
+        equip_idx = model.index(index.row(), 18)  # equip_no column
         equip_no = model.data(equip_idx, Qt.ItemDataRole.DisplayRole)
         
         combo = QComboBox(parent)
@@ -216,13 +230,13 @@ class EditTab(QWidget):
 
     COL_MAP = {
         4: "factory", 5: "project", 6: "phase",
-        7: "category", 19: "equipment", 24: "status"
+        7: "category", 18: "equipment", 23: "status"
     }
-    DATE_COLS = [2, 22, 23, 26, 27]
+    DATE_COLS = [2, 21, 22, 25, 26]
 
     HEADERS = [
         "ID", "Mã YC", "Ngày YC", "Người YC", "Nhà máy", "Dự án", "Giai đoạn",
-        "Hạng mục", "Loại Test", "SL", "Ngoại quan", "KQ Ngoại Quan",
+        "Hạng mục", "SL", "Ngoại quan", "KQ Ngoại Quan",
         "Cross hatch", "KQ X-Hatch", "Cross section", "KQ X-Section",
         "Tính năng", "KQ Tính Năng", "KQ Cuối", "Mã TB", "Tên TB",
         "Điều kiện", "Vào KH", "Ra KH", "Trạng thái", "DRI",
@@ -424,7 +438,8 @@ class EditTab(QWidget):
             params.append(result)
 
         where = " WHERE " + " AND ".join(conditions) if conditions else ""
-        query = f"SELECT * FROM requests {where} ORDER BY id DESC"
+        cols = ", ".join(DB_SELECT_COLS)
+        query = f"SELECT {cols} FROM requests {where} ORDER BY id DESC"
 
         # Load data
         conn = self.db.connect()
@@ -437,7 +452,7 @@ class EditTab(QWidget):
         lemon_bg = QColor("#FFF9C4")
 
         for _, row in df.iterrows():
-            status_val = str(row.iloc[24]) if row.iloc[24] else ""
+            status_val = str(row.iloc[23]) if row.iloc[23] else ""
             row_bg = QColor(STATUS_COLORS.get(status_val, DEFAULT_COLOR))
 
             items = []
@@ -474,8 +489,8 @@ class EditTab(QWidget):
             if col >= 4:
                 self.table.setItemDelegateForColumn(col, dd)
 
-        self.table.setItemDelegateForColumn(21, RecipeDelegate(self.table))
-        self.table.setItemDelegateForColumn(28, NoEditDelegate(self.table))
+        self.table.setItemDelegateForColumn(20, RecipeDelegate(self.table))
+        self.table.setItemDelegateForColumn(27, NoEditDelegate(self.table))
 
         # Resize columns
         h = self.table.horizontalHeader()
@@ -484,7 +499,7 @@ class EditTab(QWidget):
             width = 120 if i > 0 else 50
             self.table.setColumnWidth(i, width)
             self.table.frozen.setColumnWidth(i, width)
-        h.setSectionResizeMode(30, QHeaderView.ResizeMode.Stretch)
+        h.setSectionResizeMode(29, QHeaderView.ResizeMode.Stretch)
 
         self.table_container.addWidget(self.table)
 
@@ -496,7 +511,7 @@ class EditTab(QWidget):
             item.setBackground(QColor("white"))
 
         # Auto-fill equipment name
-        if item.column() == 19:
+        if item.column() == 18:
             equip_no = item.text().strip()
             if equip_no:
                 try:
@@ -506,14 +521,14 @@ class EditTab(QWidget):
                     )
                     if rows:
                         self.model.blockSignals(True)
-                        self.model.setItem(item.row(), 20, QStandardItem(rows[0][0]))
+                        self.model.setItem(item.row(), 19, QStandardItem(rows[0][0]))
                         self.model.blockSignals(False)
                 except Exception:
                     pass
 
     def _handle_double_click(self, index):
         """Handle double click for log file selection"""
-        if index.column() == 28:
+        if index.column() == 27:
             row = index.row()
             req_no = self.model.item(row, 1).text().strip()
 
@@ -540,6 +555,7 @@ class EditTab(QWidget):
     def _save(self):
         """Save all changes"""
         try:
+            updated_count = 0
             with self.db.get_cursor() as cursor:
                 for r in range(self.model.rowCount()):
                     # Get row data
@@ -553,11 +569,11 @@ class EditTab(QWidget):
                     if not record_id:
                         continue
 
-                    # Build UPDATE query
+                    # Build UPDATE query (without detail field)
                     cursor.execute("""
                         UPDATE requests SET
                             request_no=?, request_date=?, requester=?, factory=?,
-                            project=?, phase=?, category=?, detail=?, qty=?,
+                            project=?, phase=?, category=?, qty=?,
                             cos=?, cos_res=?, hcross=?, xhatch_res=?, xcross=?,
                             xsection_res=?, func_test=?, func_res=?, final_res=?,
                             equip_no=?, equip_name=?, test_condition=?,
@@ -566,19 +582,24 @@ class EditTab(QWidget):
                         WHERE id=?
                     """, (
                         row_data[1], row_data[2], row_data[3], row_data[4],
-                        row_data[5], row_data[6], row_data[7], row_data[8], row_data[9],
-                        row_data[10], row_data[11], row_data[12], row_data[13], row_data[14],
-                        row_data[15], row_data[16], row_data[17], row_data[18],
-                        row_data[19], row_data[20], row_data[21],
-                        row_data[22], row_data[23], row_data[24], row_data[25],
-                        row_data[26], row_data[27], row_data[28], row_data[29], row_data[30],
+                        row_data[5], row_data[6], row_data[7], row_data[8],
+                        row_data[9], row_data[10], row_data[11], row_data[12], row_data[13],
+                        row_data[14], row_data[15], row_data[16], row_data[17],
+                        row_data[18], row_data[19], row_data[20],
+                        row_data[21], row_data[22], row_data[23], row_data[24],
+                        row_data[25], row_data[26], row_data[27], row_data[28], row_data[29],
                         record_id
                     ))
+                    updated_count += 1
+
+            logger.info(f"Saved {updated_count} records")
+            log_audit("DATA_SAVE", details=f"Updated {updated_count} records")
 
             QMessageBox.information(self, "Thành công", "Đã lưu!")
             self._load_data()
 
         except Exception as e:
+            logger.error(f"Failed to save data: {str(e)}", exc_info=True)
             QMessageBox.critical(self, "Lỗi", str(e))
 
     def _export_csv(self):
@@ -605,7 +626,8 @@ class EditTab(QWidget):
                     params.append(result)
 
                 where = " WHERE " + " AND ".join(conditions) if conditions else ""
-                query = f"SELECT * FROM requests {where} ORDER BY id DESC"
+                cols = ", ".join(DB_SELECT_COLS)
+                query = f"SELECT {cols} FROM requests {where} ORDER BY id DESC"
 
                 conn = self.db.connect()
                 df = pd.read_sql_query(query, conn, params=tuple(params))

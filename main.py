@@ -12,9 +12,13 @@ from PyQt6.QtGui import QIcon, QPalette, QColor
 # Add src to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src.config import APP_TITLE, ICON_FILE
+from src.config import APP_TITLE, APP_VERSION, ICON_FILE
 from src.services.database import get_db
 from src.services.auth import get_auth
+from src.services.logger import get_logger_service, get_logger, log_audit
+
+# Initialize logger early
+logger = get_logger("main")
 
 
 def setup_light_palette(app: QApplication):
@@ -137,6 +141,10 @@ def init_database():
 
 def main():
     """Main application entry point"""
+    # Log application start
+    logger.info(f"=== kRel v{APP_VERSION} Starting ===")
+    log_audit("APP_START", details=f"Version {APP_VERSION}")
+
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
 
@@ -146,25 +154,27 @@ def main():
     # Set application icon
     if os.path.exists(ICON_FILE):
         app.setWindowIcon(QIcon(ICON_FILE))
-    
+
     # Global exception handler
     def exception_handler(exc_type, exc_value, exc_tb):
         error_msg = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+        logger.error(f"Unhandled exception: {error_msg}", exc_info=True)
         QMessageBox.critical(None, "Lỗi Nghiêm Trọng", error_msg)
-    
+
     sys.excepthook = exception_handler
-    
+
     # Main application loop
     while True:
         # Try to initialize database
+        logger.debug("Initializing database...")
         init_database()
-        
+
         # Show login dialog
         from src.views.login_dialog import LoginDialog
         login = LoginDialog()
         if os.path.exists(ICON_FILE):
             login.setWindowIcon(QIcon(ICON_FILE))
-        
+
         if login.exec() == login.DialogCode.Accepted:
             try:
                 # Show main window
@@ -173,14 +183,20 @@ def main():
                 if os.path.exists(ICON_FILE):
                     window.setWindowIcon(QIcon(ICON_FILE))
                 window.show()
+                logger.info(f"Main window opened for user: {login.user_info.get('username', 'unknown')}")
                 app.exec()
-                
+
                 # Check if logout or exit
                 if not window.is_logout:
+                    logger.info("Application exiting normally")
+                    log_audit("APP_EXIT", user=login.user_info.get('username', ''))
                     break  # Exit application
+                else:
+                    logger.info(f"User {login.user_info.get('username', '')} logged out")
                 # else: continue loop to show login again
-                
+
             except Exception as e:
+                logger.error(f"Runtime error: {str(e)}", exc_info=True)
                 QMessageBox.critical(
                     None, "Lỗi Vận Hành",
                     f"Lỗi:\n{str(e)}\n\n{traceback.format_exc()}"
@@ -188,8 +204,10 @@ def main():
                 break
         else:
             # User closed login dialog
+            logger.info("Login cancelled by user")
             break
-    
+
+    logger.info("=== kRel Shutdown ===")
     return 0
 
 

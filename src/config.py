@@ -142,7 +142,6 @@ TOP_FIELDS = [
     ("equip_name", "Tên thiết bị", "line", True),
     ("test_condition", "Điều kiện", "combo", False),
     ("qty", "Số lượng", "line", False),
-    ("detail", "Loại Test", "line", False),
 ]
 
 BOTTOM_FIELDS = [

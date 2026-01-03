@@ -23,6 +23,10 @@ from src.styles import (
 from src.services.database import get_db
 from src.services.lookup_service import get_lookup_service
 from src.services.request_service import get_request_service
+from src.services.logger import get_logger, log_audit
+
+# Module logger
+logger = get_logger("input_tab")
 
 
 class InputTab(QWidget):
@@ -35,7 +39,7 @@ class InputTab(QWidget):
         ("Dự án", "project"), ("Giai đoạn", "phase"),
         ("Hạng mục", "category"), ("Mã Thiết bị", "equip_no"),
         ("Tên Thiết bị", "equip_name"), ("Số lượng", "qty"),
-        ("Loại Test", "detail"), ("Điều kiện test", "test_condition")
+        ("Điều kiện test", "test_condition")
     ]
 
     BOTTOM_FIELDS = [("KQ Cuối", "final_res"), ("Trạng thái", "status")]
@@ -404,6 +408,10 @@ class InputTab(QWidget):
         try:
             # Collect values
             values = self._collect_form_values()
+            request_no = values.get("request_no", "Unknown")
+            requester = values.get("requester", "")
+
+            logger.debug(f"Saving request: {request_no}")
 
             # Build INSERT query
             columns = list(values.keys())
@@ -425,12 +433,17 @@ class InputTab(QWidget):
                 )
                 os.makedirs(dest_dir, exist_ok=True)
                 shutil.copy(self.log_label.path, dest_dir)
+                logger.debug(f"Log file copied to {dest_dir}")
+
+            logger.info(f"Request saved: {request_no} by {requester}")
+            log_audit("REQUEST_CREATE", user=requester, details=f"Code: {request_no}")
 
             QMessageBox.information(self, "Thành công", "Đã lưu!")
             self._clear_form()
             self._load_recent_requests()
 
         except Exception as e:
+            logger.error(f"Failed to save request: {str(e)}", exc_info=True)
             QMessageBox.critical(self, "Lỗi", str(e))
 
     def _collect_form_values(self) -> dict:

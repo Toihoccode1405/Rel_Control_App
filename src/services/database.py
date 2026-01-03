@@ -3,6 +3,7 @@ kRel - Database Service
 Singleton database connection manager with SQL Server support
 """
 import os
+import logging
 from configparser import ConfigParser
 from typing import Optional, Any
 from contextlib import contextmanager
@@ -16,6 +17,9 @@ try:
     from cryptography.fernet import Fernet
 except ImportError:
     Fernet = None
+
+# Use basic logging to avoid circular import with logger service
+db_logger = logging.getLogger("kRel.database")
 
 
 class DatabaseService:
@@ -130,17 +134,19 @@ class DatabaseService:
         """Get database connection (creates new if needed)"""
         if not pyodbc:
             raise ImportError("pyodbc package required for SQL Server")
-        
+
         if self._connection is None:
             conn_str = self._get_connection_string()
+            db_logger.debug("Establishing database connection...")
             self._connection = pyodbc.connect(conn_str)
-        
+            db_logger.info("Database connection established successfully")
+
         return self._connection
-    
+
     def get_connection(self) -> Any:
         """Alias for connect()"""
         return self.connect()
-    
+
     @contextmanager
     def get_cursor(self):
         """Context manager for database cursor with auto-commit"""
@@ -149,8 +155,9 @@ class DatabaseService:
         try:
             yield cursor
             conn.commit()
-        except Exception:
+        except Exception as e:
             conn.rollback()
+            db_logger.error(f"Database error, transaction rolled back: {str(e)}")
             raise
     
     def execute(self, query: str, params: tuple = None) -> Any:

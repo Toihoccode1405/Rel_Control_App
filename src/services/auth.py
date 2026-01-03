@@ -9,6 +9,10 @@ from datetime import datetime, timedelta
 
 from src.models.user import User
 from src.services.database import get_db
+from src.services.logger import get_logger, log_audit
+
+# Module logger
+logger = get_logger("auth")
 
 
 class AuthService:
@@ -37,38 +41,50 @@ class AuthService:
         Returns: (success, user, message)
         """
         if not username or not password:
+            logger.debug(f"Login attempt with empty credentials")
             return False, None, "Vui lòng nhập đầy đủ thông tin!"
-        
+
         try:
             db = get_db()
             row = db.fetch_one(
                 "SELECT username, password, fullname, email, role FROM users WHERE username = ?",
                 (username,)
             )
-            
+
             if not row:
+                logger.warning(f"Login failed: user '{username}' not found")
+                log_audit("LOGIN_FAILED", user=username, details="User not found")
                 return False, None, "Tài khoản không tồn tại!"
-            
+
             user = User.from_db_row(row)
-            
+
             if not User.verify_password(password, user.password):
+                logger.warning(f"Login failed: wrong password for '{username}'")
+                log_audit("LOGIN_FAILED", user=username, details="Wrong password")
                 return False, None, "Sai mật khẩu!"
-            
+
             # Login successful
             self._current_user = user
             self._last_activity = datetime.now()
-            
+
+            logger.info(f"User '{username}' logged in successfully (role: {user.role})")
+            log_audit("LOGIN_SUCCESS", user=username, details=f"Role: {user.role}")
+
             return True, user, "Đăng nhập thành công!"
-            
+
         except Exception as e:
+            logger.error(f"Login error for '{username}': {str(e)}", exc_info=True)
             return False, None, f"Lỗi kết nối: {str(e)}"
-    
+
     def logout(self):
         """Clear current session"""
+        username = self._current_user.username if self._current_user else "unknown"
+        logger.info(f"User '{username}' logged out")
+        log_audit("LOGOUT", user=username)
         self._current_user = None
         self._last_activity = None
     
-    def register(self, username: str, password: str, fullname: str = "", 
+    def register(self, username: str, password: str, fullname: str = "",
                  email: str = "", role: str = "Operator") -> tuple[bool, str]:
         """
         Register new user
@@ -76,21 +92,22 @@ class AuthService:
         """
         if not username or not password:
             return False, "Vui lòng nhập đầy đủ thông tin!"
-        
+
         if len(password) < 1:
             return False, "Mật khẩu quá ngắn!"
-        
+
         try:
             db = get_db()
-            
+
             # Check if username exists
             existing = db.fetch_one(
                 "SELECT username FROM users WHERE username = ?",
                 (username,)
             )
             if existing:
+                logger.warning(f"Registration failed: username '{username}' already exists")
                 return False, "Tài khoản đã tồn tại!"
-            
+
             # Create new user
             hashed_password = User.hash_password(password)
             user = User(
@@ -100,16 +117,20 @@ class AuthService:
                 email=email,
                 role=role
             )
-            
+
             with db.get_cursor() as cursor:
                 cursor.execute(
                     "INSERT INTO users (username, password, fullname, email, role) VALUES (?, ?, ?, ?, ?)",
                     user.to_tuple()
                 )
-            
+
+            logger.info(f"New user registered: '{username}' (role: {role})")
+            log_audit("USER_REGISTER", user=username, details=f"Role: {role}, Name: {fullname}")
+
             return True, "Đăng ký thành công!"
-            
+
         except Exception as e:
+            logger.error(f"Registration error for '{username}': {str(e)}", exc_info=True)
             return False, f"Lỗi: {str(e)}"
     
     def get_current_user(self) -> Optional[User]:
