@@ -8,6 +8,10 @@ from src.services.lookup_service import LookupService, get_lookup_service
 from src.services.request_service import RequestService, get_request_service
 from src.services.encryption import EncryptionService, get_encryption_service
 from src.services.logger import LoggerService, get_logger_service, get_logger, log_audit
+from src.services.validator import (
+    Validator, ValidationResult, ValidationError,
+    RequestValidator, UserValidator, FormValidator, get_validator
+)
 
 __all__ = [
     "DatabaseService",
@@ -24,4 +28,11 @@ __all__ = [
     "get_logger_service",
     "get_logger",
     "log_audit",
+    "Validator",
+    "ValidationResult",
+    "ValidationError",
+    "RequestValidator",
+    "UserValidator",
+    "FormValidator",
+    "get_validator",
 ]

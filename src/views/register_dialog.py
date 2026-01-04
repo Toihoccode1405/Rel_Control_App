@@ -10,6 +10,7 @@ from PyQt6.QtGui import QPalette, QColor
 
 from src.styles import LOGIN_STYLE, BTN_STYLE_BLUE
 from src.services.auth import get_auth
+from src.services.validator import UserValidator
 
 
 class RegisterDialog(QDialog):
@@ -89,6 +90,18 @@ class RegisterDialog(QDialog):
         password = self.txt_password.text().strip()
         fullname = self.txt_fullname.text().strip()
         email = self.txt_email.text().strip()
+
+        # Validate input
+        result = UserValidator.validate_register(username, password, fullname, email)
+        if not result.is_valid:
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setWindowTitle("Lỗi nhập liệu")
+            msg.setText("Vui lòng kiểm tra các trường sau:")
+            msg.setInformativeText(result.to_html())
+            msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msg.exec()
+            return
 
         success, message = self.auth.register(
             username=username,

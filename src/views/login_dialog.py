@@ -11,6 +11,7 @@ from PyQt6.QtGui import QPalette, QColor
 
 from src.styles import LOGIN_STYLE, BTN_STYLE_BLUE
 from src.services.auth import get_auth
+from src.services.validator import UserValidator
 from src.views.register_dialog import RegisterDialog
 
 
@@ -105,6 +106,12 @@ class LoginDialog(QDialog):
         """Perform login"""
         username = self.txt_username.text().strip()
         password = self.txt_password.text().strip()
+
+        # Validate input
+        result = UserValidator.validate_login(username, password)
+        if not result.is_valid:
+            QMessageBox.warning(self, "Lỗi", result.to_html())
+            return
 
         success, user, message = self.auth.login(username, password)
 

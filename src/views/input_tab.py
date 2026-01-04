@@ -24,6 +24,8 @@ from src.services.database import get_db
 from src.services.lookup_service import get_lookup_service
 from src.services.request_service import get_request_service
 from src.services.logger import get_logger, log_audit
+from src.services.validator import FormValidator
+from src.widgets.validated_field import ValidatedField
 
 # Module logger
 logger = get_logger("input_tab")
@@ -45,11 +47,16 @@ class InputTab(QWidget):
     BOTTOM_FIELDS = [("KQ Cuối", "final_res"), ("Trạng thái", "status")]
     COMBO_FIELDS = ["factory", "project", "phase", "category", "equip_no", "status"]
 
+    # Fields that require validation
+    REQUIRED_FIELDS = ["request_no", "requester", "factory", "project"]
+    VALIDATED_FIELDS = ["request_no", "requester", "factory", "project", "qty"]
+
     def __init__(self, log_path: str, user_info: dict, parent=None):
         super().__init__(parent)
         self.log_path = log_path
         self.user_info = user_info
         self.widgets = {}  # Store all input widgets
+        self.validated_fields = {}  # Store ValidatedField wrappers
 
         self.db = get_db()
         self.lookup_service = get_lookup_service()
@@ -59,10 +66,31 @@ class InputTab(QWidget):
 
         self.setStyleSheet(INPUT_TAB_STYLE)
         self._setup_ui()
+        self._setup_validation()
 
         # Initialize request code
         self._update_request_code(QDate.currentDate())
         self._load_recent_requests()
+
+    def _setup_validation(self):
+        """Setup form validation rules"""
+        self.form_validator = FormValidator(self.validated_fields)
+
+        # Required fields
+        self.form_validator.required("request_no")
+        self.form_validator.required("requester")
+        self.form_validator.required("factory")
+        self.form_validator.required("project")
+
+        # Pattern validation
+        self.form_validator.pattern(
+            "request_no",
+            r"^\d{8}-\d{3}$",
+            "Định dạng: YYYYMMDD-SSS"
+        )
+
+        # Numeric validation
+        self.form_validator.numeric("qty")
     
     def _setup_ui(self):
         """Setup UI components"""
@@ -76,10 +104,25 @@ class InputTab(QWidget):
         # Bottom section (schedule, notes, save button)
         self._setup_bottom_section(main_layout)
 
-        # Recent requests section
-        table_header = QLabel("<b style='font-size: 14px; color: #1565C0;'>📋 Danh sách nhập trong ngày</b>")
-        table_header.setContentsMargins(0, 8, 0, 4)
-        main_layout.addWidget(table_header)
+        # Recent requests section with filter
+        table_header_layout = QHBoxLayout()
+        table_header_layout.setContentsMargins(0, 8, 0, 4)
+
+        table_header = QLabel("<b style='font-size: 14px; color: #1565C0;'>📋 Danh sách nhập gần đây</b>")
+        table_header_layout.addWidget(table_header)
+
+        table_header_layout.addStretch()
+
+        # Filter combo
+        self.cb_recent_filter = QComboBox()
+        self.cb_recent_filter.addItems(["Hôm nay", "7 ngày", "30 ngày", "Tất cả"])
+        self.cb_recent_filter.setCurrentIndex(1)  # Default: 7 ngày
+        self.cb_recent_filter.setMinimumWidth(100)
+        self.cb_recent_filter.currentIndexChanged.connect(self._load_recent_requests)
+        table_header_layout.addWidget(QLabel("Hiển thị:"))
+        table_header_layout.addWidget(self.cb_recent_filter)
+
+        main_layout.addLayout(table_header_layout)
 
         self.table = QTableView()
         self.table.setStyleSheet(TABLE_STYLE)
@@ -148,19 +191,31 @@ class InputTab(QWidget):
 
     def _create_field(self, grid, label_text, field_name, row, col, is_result=False):
         """Create a form field with label"""
-        # Label
-        lbl = QLabel(f"{label_text}:")
+        # Label - add * for required fields
+        is_required = field_name in self.REQUIRED_FIELDS
+        label_suffix = " *" if is_required else ""
+        lbl = QLabel(f"{label_text}{label_suffix}:")
         lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         if is_result:
             lbl.setStyleSheet("font-weight: 600; color: #E65100;")
+        elif is_required:
+            lbl.setStyleSheet("font-weight: 600; color: #1565C0;")
         else:
             lbl.setStyleSheet("font-weight: 500; color: #424242;")
         grid.addWidget(lbl, row, col * 2)
 
         # Widget
-        widget = self._create_input_widget(field_name, is_result)
-        self.widgets[field_name] = widget
-        grid.addWidget(widget, row, col * 2 + 1)
+        input_widget = self._create_input_widget(field_name, is_result)
+
+        # Wrap with ValidatedField if it's a validated field
+        if field_name in self.VALIDATED_FIELDS:
+            validated = ValidatedField(input_widget, field_name, label_text)
+            self.widgets[field_name] = input_widget  # Store actual widget
+            self.validated_fields[field_name] = validated  # Store wrapper
+            grid.addWidget(validated, row, col * 2 + 1)
+        else:
+            self.widgets[field_name] = input_widget
+            grid.addWidget(input_widget, row, col * 2 + 1)
     
     def _create_input_widget(self, field_name, is_result=False):
         """Create appropriate input widget based on field name"""
@@ -275,7 +330,7 @@ class InputTab(QWidget):
 
         btn_log = QPushButton("📁 Chọn")
         btn_log.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_log.setFixedWidth(70)
+        btn_log.setFixedWidth(90)
         btn_log.setStyleSheet(BTN_STYLE_BLUE)
         btn_log.clicked.connect(self._pick_log_file)
 
@@ -406,6 +461,14 @@ class InputTab(QWidget):
     def _save(self):
         """Save the request"""
         try:
+            # Clear previous errors
+            self.form_validator.clear_all_errors()
+
+            # Inline validation first
+            if not self.form_validator.validate_all():
+                logger.debug("Validation failed - inline errors shown")
+                return
+
             # Collect values
             values = self._collect_form_values()
             request_no = values.get("request_no", "Unknown")
@@ -512,18 +575,43 @@ class InputTab(QWidget):
                     widget.setCurrentIndex(0)
 
     def _load_recent_requests(self):
-        """Load today's requests into table"""
+        """Load recent requests into table based on filter"""
         try:
-            today_str = QDate.currentDate().toString("yyyy-MM-dd")
-
             db = get_db()
-            rows = db.fetch_all("""
+
+            # Get filter selection
+            filter_idx = 1  # Default: 7 days
+            if hasattr(self, 'cb_recent_filter'):
+                filter_idx = self.cb_recent_filter.currentIndex()
+
+            # Build date condition based on filter
+            today = QDate.currentDate()
+
+            if filter_idx == 0:  # Hôm nay
+                date_str = today.toString("yyyy-MM-dd")
+                condition = "request_date LIKE ?"
+                params = (f"{date_str}%",)
+            elif filter_idx == 1:  # 7 ngày
+                start_date = today.addDays(-7).toString("yyyy-MM-dd")
+                condition = "request_date >= ?"
+                params = (start_date,)
+            elif filter_idx == 2:  # 30 ngày
+                start_date = today.addDays(-30).toString("yyyy-MM-dd")
+                condition = "request_date >= ?"
+                params = (start_date,)
+            else:  # Tất cả
+                condition = "1=1"
+                params = ()
+
+            query = f"""
                 SELECT request_no, request_date, requester, factory, project, phase,
                        equip_no, equip_name, test_condition,
                        plan_start, plan_end, actual_start, actual_end,
                        status, dri, final_res
-                FROM requests WHERE request_date LIKE ? ORDER BY id DESC
-            """, (f"{today_str}%",))
+                FROM requests WHERE {condition} ORDER BY id DESC
+            """
+
+            rows = db.fetch_all(query, params) if params else db.fetch_all(query)
 
             headers = [
                 "Mã YC", "Ngày YC", "Người YC", "Nhà Máy", "Dự Án", "Giai Đoạn",
@@ -544,6 +632,8 @@ class InputTab(QWidget):
             header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
             header.setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
 
-        except Exception:
-            pass
+            logger.debug(f"Loaded {len(rows)} recent requests (filter: {filter_idx})")
+
+        except Exception as e:
+            logger.error(f"Failed to load recent requests: {e}")
 

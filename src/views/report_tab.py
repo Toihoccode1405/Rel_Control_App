@@ -18,13 +18,14 @@ from PyQt6.QtGui import (
 from src.config import PASTEL_COLORS
 from src.services.database import get_db
 from src.widgets.gantt_chart import GanttBar
+from src.widgets.loading_overlay import LoadingMixin
 from src.styles import (
     BTN_STYLE_BLUE, BTN_STYLE_ORANGE, TABLE_STYLE,
     GROUPBOX_STYLE, TOOLBAR_FRAME_STYLE, INFO_LABEL_STYLE, TAB_STYLE
 )
 
 
-class ReportTab(QWidget):
+class ReportTab(QWidget, LoadingMixin):
     """Report tab with detail reports and Gantt chart"""
 
     def __init__(self, parent=None):
@@ -42,6 +43,9 @@ class ReportTab(QWidget):
         self.tabs.addTab(self._init_report_1(), "📊 Báo Cáo Chi Tiết")
         self.tabs.addTab(self._init_report_2(), "📅 Theo Dõi Thiết Bị")
         layout.addWidget(self.tabs)
+
+        # Initialize loading overlay
+        self.setup_loading()
 
     def _init_report_1(self):
         """Initialize detail report tab"""
@@ -324,6 +328,14 @@ class ReportTab(QWidget):
 
     def _load_report_1(self):
         """Load detail report data"""
+        self.show_loading("Đang tải báo cáo...")
+        try:
+            self._do_load_report_1()
+        finally:
+            self.hide_loading()
+
+    def _do_load_report_1(self):
+        """Internal report loading logic"""
         req = self.r1_req.currentText()
         d1 = self.r1_d1.date().toString("yyyy-MM-dd")
         d2 = self.r1_d2.date().toString("yyyy-MM-dd")
@@ -430,6 +442,14 @@ class ReportTab(QWidget):
 
     def _draw_gantt(self):
         """Draw Gantt chart"""
+        self.show_loading("Đang vẽ Gantt chart...")
+        try:
+            self._do_draw_gantt()
+        finally:
+            self.hide_loading()
+
+    def _do_draw_gantt(self):
+        """Internal Gantt drawing logic"""
         self.scene.clear()
         self.lbl_click_info.setText("<i>(Click vào thanh test để xem chi tiết...)</i>")
 

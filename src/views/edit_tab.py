@@ -23,6 +23,7 @@ from src.styles import (
     BTN_STYLE_BLUE, BTN_STYLE_GREEN_SOLID, BTN_STYLE_ORANGE_SOLID,
     TABLE_STYLE, TOOLBAR_FRAME_STYLE, FILTER_FRAME_STYLE
 )
+from src.widgets.loading_overlay import LoadingMixin
 
 # Module logger
 logger = get_logger("edit_tab")
@@ -225,7 +226,7 @@ class FrozenTableView(QTableView):
         self.updateFrozenTableGeometry()
 
 
-class EditTab(QWidget):
+class EditTab(QWidget, LoadingMixin):
     """Data editing tab with full CRUD support"""
 
     COL_MAP = {
@@ -253,6 +254,7 @@ class EditTab(QWidget):
         self.model = None
 
         self._setup_ui()
+        self.setup_loading()  # Initialize loading overlay
         self._init_filter_list()
         self._load_data()
 
@@ -409,6 +411,14 @@ class EditTab(QWidget):
 
     def _load_data(self):
         """Load data into table"""
+        self.show_loading("Đang tải dữ liệu...")
+        try:
+            self._do_load_data()
+        finally:
+            self.hide_loading()
+
+    def _do_load_data(self):
+        """Internal data loading logic"""
         # Build combo data
         data = {}
         for col, table in self.COL_MAP.items():
