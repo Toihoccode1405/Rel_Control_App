@@ -17,12 +17,17 @@ from PyQt6.QtGui import (
 
 from src.config import PASTEL_COLORS
 from src.services.database import get_db
+from src.services.data_event_bus import get_event_bus
+from src.services.logger import get_logger
 from src.widgets.gantt_chart import GanttBar
 from src.widgets.loading_overlay import LoadingMixin
 from src.styles import (
     BTN_STYLE_BLUE, BTN_STYLE_ORANGE, TABLE_STYLE,
     GROUPBOX_STYLE, TOOLBAR_FRAME_STYLE, INFO_LABEL_STYLE, TAB_STYLE
 )
+
+# Module logger
+logger = get_logger("report_tab")
 
 
 class ReportTab(QWidget, LoadingMixin):
@@ -46,6 +51,53 @@ class ReportTab(QWidget, LoadingMixin):
 
         # Initialize loading overlay
         self.setup_loading()
+
+        # Connect to DataEventBus
+        self._connect_events()
+
+    def _connect_events(self):
+        """Connect to DataEventBus events for realtime updates"""
+        event_bus = get_event_bus()
+
+        # Listen for request changes - may want to refresh reports
+        event_bus.request_created.connect(self._on_data_changed)
+        event_bus.request_updated.connect(self._on_data_changed)
+        event_bus.request_deleted.connect(self._on_data_changed)
+
+        # Listen for equipment changes - refresh equipment combos
+        event_bus.equipment_changed.connect(self._on_equipment_changed)
+
+        logger.debug("ReportTab connected to DataEventBus")
+
+    def _on_data_changed(self, request_no: str = None):
+        """Handle data changes - can auto-refresh if needed"""
+        # Note: For reports, we don't auto-refresh because user may be viewing
+        # a specific report. They can click "Xem" to refresh manually.
+        logger.debug(f"Data changed event received: {request_no}")
+
+    def _on_equipment_changed(self):
+        """Handle equipment data changes - reload equipment combos"""
+        # Reload equipment combo in Report 2 (Gantt)
+        if hasattr(self, 'cb_equip'):
+            current = self.cb_equip.currentText()
+            self._load_equipment_combo()
+            idx = self.cb_equip.findText(current)
+            if idx >= 0:
+                self.cb_equip.setCurrentIndex(idx)
+            logger.debug("Reloaded equipment combo in ReportTab")
+
+    def _load_equipment_combo(self):
+        """Load equipment combo box"""
+        if not hasattr(self, 'cb_equip'):
+            return
+        self.cb_equip.clear()
+        self.cb_equip.addItem("")
+        try:
+            rows = self.db.fetch_all("SELECT control_no FROM equipment ORDER BY control_no")
+            for r in rows:
+                self.cb_equip.addItem(r[0])
+        except Exception:
+            pass
 
     def _init_report_1(self):
         """Initialize detail report tab"""

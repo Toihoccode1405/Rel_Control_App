@@ -263,32 +263,35 @@ TABLE_STYLE = """
     QTableView {
         border: 1px solid #E0E0E0;
         border-radius: 6px;
-       gridline-color: #E8EBF0;
+        gridline-color: #E8EBF0;
         background-color: white;
-       alternate-background-color: #F8FAFC;
+        alternate-background-color: #F8FAFC;
         selection-background-color: #E3F2FD;
         selection-color: #1565C0;
         font-size: 13px;
+        color: #212121;
     }
     QTableView::item {
         padding: 8px 12px;
-       border-bottom: 1px solid #E8EBF0;
+        border-bottom: 1px solid #E8EBF0;
+        color: #212121;
     }
     QTableView::item:selected {
         background-color: #E3F2FD;
+        color: #1565C0;
     }
     QHeaderView::section {
-       background-color: #E8F0FE;
+        background-color: #E8F0FE;
         color: #212121;
         padding: 10px 12px;
         border: none;
         border-right: 1px solid #E0E0E0;
-       border-bottom: 2px solid #BBDEFB;
+        border-bottom: 2px solid #BBDEFB;
         font-weight: 600;
         font-size: 13px;
     }
     QHeaderView::section:hover {
-       background-color: #BBDEFB;
+        background-color: #BBDEFB;
     }
 """
 
@@ -403,17 +406,17 @@ INPUT_TAB_STYLE = """
         font-weight: 600;
         font-size: 13px;
         color: #1565C0;
-       border: 1px solid #BBDEFB;
+        border: 1px solid #BBDEFB;
         border-radius: 8px;
         margin-top: 12px;
         padding: 12px 8px 8px 8px;
-       background-color: #F5F9FF;
+        background-color: #F5F9FF;
     }
     QGroupBox::title {
         subcontrol-origin: margin;
         left: 12px;
         padding: 0 6px;
-       background-color: #F5F9FF;
+        background-color: #F5F9FF;
     }
     QLabel {
         font-size: 12px;
@@ -426,16 +429,24 @@ INPUT_TAB_STYLE = """
         border: 1px solid #CFD8DC;
         border-radius: 4px;
         background-color: #FFFFFF;
+        color: #212121;
     }
-   QLineEdit:hover, QComboBox:hover, QDateTimeEdit:hover {
-       border-color: #90CAF9;
-       background-color: #FAFEFF;
-   }
+    QComboBox QAbstractItemView {
+        background-color: #FFFFFF;
+        color: #212121;
+        selection-background-color: #E3F2FD;
+        selection-color: #1565C0;
+        border: 1px solid #CFD8DC;
+    }
+    QLineEdit:hover, QComboBox:hover, QDateTimeEdit:hover {
+        border-color: #90CAF9;
+        background-color: #FAFEFF;
+    }
     QLineEdit:focus, QComboBox:focus, QDateTimeEdit:focus {
         border: 2px solid #1565C0;
     }
     QLineEdit:read-only {
-       background-color: #ECEFF1;
+        background-color: #ECEFF1;
         color: #757575;
     }
 """

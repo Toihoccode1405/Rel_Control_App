@@ -20,10 +20,15 @@ import pandas as pd
 from src.config import CONFIG_FILE
 from src.services.database import get_db
 from src.services.encryption import EncryptionService
+from src.services.data_event_bus import get_event_bus
+from src.services.logger import get_logger
 from src.styles import (
     BTN_STYLE_BLUE, BTN_STYLE_GREEN, BTN_STYLE_RED, BTN_STYLE_ORANGE,
     BTN_STYLE_GREEN_SOLID, SETTINGS_MENU_STYLE, TABLE_STYLE, GROUPBOX_STYLE
 )
+
+# Module logger
+logger = get_logger("settings_tab")
 
 
 class SettingsTab(QWidget):
@@ -529,6 +534,10 @@ class SettingsTab(QWidget):
                         (text, text)
                     )
                 self._load_general(table)
+
+                # Emit event for other tabs to refresh
+                get_event_bus().emit_lookup_changed(table)
+                logger.debug(f"Added to {table}: {text}")
             except Exception as e:
                 QMessageBox.warning(self, "Lỗi", str(e))
 
@@ -551,6 +560,10 @@ class SettingsTab(QWidget):
                         (new, old)
                     )
                 self._load_general(table)
+
+                # Emit event for other tabs to refresh
+                get_event_bus().emit_lookup_changed(table)
+                logger.debug(f"Updated {table}: {old} -> {new}")
             except Exception as e:
                 QMessageBox.warning(self, "Lỗi", str(e))
 
@@ -562,12 +575,17 @@ class SettingsTab(QWidget):
         if index.isValid() and QMessageBox.question(
             self, "Xóa", "Xóa dòng này?"
         ) == QMessageBox.StandardButton.Yes:
+            old_value = index.data(Qt.ItemDataRole.UserRole)
             with self.db.get_cursor() as cursor:
                 cursor.execute(
                     f"DELETE FROM {table} WHERE name=?",
-                    (index.data(Qt.ItemDataRole.UserRole),)
+                    (old_value,)
                 )
             self._load_general(table)
+
+            # Emit event for other tabs to refresh
+            get_event_bus().emit_lookup_changed(table)
+            logger.debug(f"Deleted from {table}: {old_value}")
 
     # ==========================================================================
     # Equipment Management Page
@@ -713,6 +731,10 @@ class SettingsTab(QWidget):
             self._load_equipment()
             dialog.accept()
 
+            # Emit event for other tabs to refresh
+            get_event_bus().emit_equipment_changed()
+            logger.debug(f"Equipment saved: {values[1]}")
+
         except Exception as e:
             QMessageBox.warning(dialog, "Lỗi Database", str(e))
 
@@ -729,6 +751,10 @@ class SettingsTab(QWidget):
             with self.db.get_cursor() as cursor:
                 cursor.execute("DELETE FROM equipment WHERE control_no=?", (old,))
             self._load_equipment()
+
+            # Emit event for other tabs to refresh
+            get_event_bus().emit_equipment_changed()
+            logger.debug(f"Equipment deleted: {old}")
 
     # ==========================================================================
     # CSV Dialog
@@ -804,8 +830,14 @@ class SettingsTab(QWidget):
 
                 if table != "equipment":
                     self._load_general(table)
+                    # Emit event for other tabs to refresh
+                    get_event_bus().emit_lookup_changed(table)
+                    logger.debug(f"CSV imported to {table}")
                 else:
                     self._load_equipment()
+                    # Emit event for other tabs to refresh
+                    get_event_bus().emit_equipment_changed()
+                    logger.debug("CSV imported to equipment")
 
             except Exception as e:
                 QMessageBox.critical(self, "Lỗi", str(e))

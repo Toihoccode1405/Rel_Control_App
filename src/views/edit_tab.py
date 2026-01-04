@@ -19,6 +19,7 @@ import pandas as pd
 from src.config import CONFIG_FILE, DEFAULT_LOG_PATH
 from src.services.database import get_db
 from src.services.logger import get_logger, log_audit
+from src.services.data_event_bus import get_event_bus
 from src.styles import (
     BTN_STYLE_BLUE, BTN_STYLE_GREEN_SOLID, BTN_STYLE_ORANGE_SOLID,
     TABLE_STYLE, TOOLBAR_FRAME_STYLE, FILTER_FRAME_STYLE
@@ -257,6 +258,40 @@ class EditTab(QWidget, LoadingMixin):
         self.setup_loading()  # Initialize loading overlay
         self._init_filter_list()
         self._load_data()
+        self._connect_events()
+
+    def _connect_events(self):
+        """Connect to DataEventBus events for realtime updates"""
+        event_bus = get_event_bus()
+
+        # Listen for request changes
+        event_bus.request_created.connect(self._on_request_changed)
+        event_bus.request_updated.connect(self._on_request_changed)
+        event_bus.request_deleted.connect(self._on_request_changed)
+
+        # Listen for lookup data changes (to refresh filter combos)
+        event_bus.lookup_changed.connect(self._on_lookup_changed)
+
+        # Listen for equipment changes
+        event_bus.equipment_changed.connect(self._on_equipment_changed)
+
+        logger.debug("EditTab connected to DataEventBus")
+
+    def _on_request_changed(self, request_no: str = None):
+        """Handle request data changes - refresh table"""
+        logger.debug(f"Request changed event received: {request_no}")
+        self._load_data()
+
+    def _on_lookup_changed(self, table_name: str):
+        """Handle lookup data changes - reload filter combos"""
+        # Reload filter combos
+        self._init_filter_list()
+        logger.debug(f"Lookup changed, reloaded filters: {table_name}")
+
+    def _on_equipment_changed(self):
+        """Handle equipment data changes"""
+        self._init_filter_list()
+        logger.debug("Equipment changed, reloaded filters")
 
     def _load_config(self):
         """Load configuration"""
@@ -604,6 +639,10 @@ class EditTab(QWidget, LoadingMixin):
 
             logger.info(f"Saved {updated_count} records")
             log_audit("DATA_SAVE", details=f"Updated {updated_count} records")
+
+            # Emit event for other tabs (InputTab's recent list may need refresh)
+            if updated_count > 0:
+                get_event_bus().emit_request_updated("batch")
 
             QMessageBox.information(self, "Thành công", "Đã lưu!")
             self._load_data()

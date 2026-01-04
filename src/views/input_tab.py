@@ -25,6 +25,7 @@ from src.services.lookup_service import get_lookup_service
 from src.services.request_service import get_request_service
 from src.services.logger import get_logger, log_audit
 from src.services.validator import FormValidator
+from src.services.data_event_bus import get_event_bus
 from src.widgets.validated_field import ValidatedField
 
 # Module logger
@@ -67,10 +68,66 @@ class InputTab(QWidget):
         self.setStyleSheet(INPUT_TAB_STYLE)
         self._setup_ui()
         self._setup_validation()
+        self._connect_events()
 
         # Initialize request code
         self._update_request_code(QDate.currentDate())
         self._load_recent_requests()
+
+    def _connect_events(self):
+        """Connect to DataEventBus events for realtime updates"""
+        event_bus = get_event_bus()
+
+        # Listen for lookup data changes (factory, project, phase, category, status)
+        event_bus.lookup_changed.connect(self._on_lookup_changed)
+
+        # Listen for equipment changes
+        event_bus.equipment_changed.connect(self._on_equipment_data_changed)
+
+        # Listen for request updates (to refresh recent list)
+        event_bus.request_updated.connect(self._on_request_updated)
+
+        logger.debug("InputTab connected to DataEventBus")
+
+    def _on_lookup_changed(self, table_name: str):
+        """Handle lookup data changes - reload affected combo boxes"""
+        # Map table names to widget field names
+        table_to_field = {
+            "factory": "factory",
+            "project": "project",
+            "phase": "phase",
+            "category": "category",
+            "status": "status"
+        }
+
+        field_name = table_to_field.get(table_name)
+        if field_name and field_name in self.widgets:
+            widget = self.widgets[field_name]
+            if isinstance(widget, QComboBox):
+                current_text = widget.currentText()
+                self._load_combo(widget, field_name)
+                # Try to restore previous selection
+                idx = widget.findText(current_text)
+                if idx >= 0:
+                    widget.setCurrentIndex(idx)
+                logger.debug(f"Reloaded combo: {field_name}")
+
+    def _on_equipment_data_changed(self):
+        """Handle equipment data changes - reload equipment combo"""
+        if "equip_no" in self.widgets:
+            widget = self.widgets["equip_no"]
+            if isinstance(widget, QComboBox):
+                current_text = widget.currentText()
+                self._load_combo(widget, "equip_no")
+                idx = widget.findText(current_text)
+                if idx >= 0:
+                    widget.setCurrentIndex(idx)
+                logger.debug("Reloaded equipment combo")
+
+    def _on_request_updated(self, request_no: str = None):
+        """Handle request updates - refresh recent requests table"""
+        self._load_recent_requests()
+        logger.debug(f"Refreshed recent requests after update: {request_no}")
 
     def _setup_validation(self):
         """Setup form validation rules"""
@@ -118,7 +175,7 @@ class InputTab(QWidget):
         self.cb_recent_filter.addItems(["Hôm nay", "7 ngày", "30 ngày", "Tất cả"])
         self.cb_recent_filter.setCurrentIndex(1)  # Default: 7 ngày
         self.cb_recent_filter.setMinimumWidth(100)
-        self.cb_recent_filter.currentIndexChanged.connect(self._load_recent_requests)
+        self.cb_recent_filter.currentIndexChanged.connect(lambda idx: self._load_recent_requests())
         table_header_layout.addWidget(QLabel("Hiển thị:"))
         table_header_layout.addWidget(self.cb_recent_filter)
 
@@ -501,6 +558,9 @@ class InputTab(QWidget):
             logger.info(f"Request saved: {request_no} by {requester}")
             log_audit("REQUEST_CREATE", user=requester, details=f"Code: {request_no}")
 
+            # Emit event for other tabs to refresh
+            get_event_bus().emit_request_created(request_no)
+
             QMessageBox.information(self, "Thành công", "Đã lưu!")
             self._clear_form()
             self._load_recent_requests()
@@ -601,7 +661,7 @@ class InputTab(QWidget):
                 params = (start_date,)
             else:  # Tất cả
                 condition = "1=1"
-                params = ()
+                params = None  # Use None instead of empty tuple
 
             query = f"""
                 SELECT request_no, request_date, requester, factory, project, phase,
@@ -611,7 +671,9 @@ class InputTab(QWidget):
                 FROM requests WHERE {condition} ORDER BY id DESC
             """
 
-            rows = db.fetch_all(query, params) if params else db.fetch_all(query)
+            logger.debug(f"Loading recent requests with filter {filter_idx}, condition: {condition}")
+            rows = db.fetch_all(query, params)
+            logger.debug(f"Query returned {len(rows)} rows")
 
             headers = [
                 "Mã YC", "Ngày YC", "Người YC", "Nhà Máy", "Dự Án", "Giai Đoạn",
@@ -635,5 +697,5 @@ class InputTab(QWidget):
             logger.debug(f"Loaded {len(rows)} recent requests (filter: {filter_idx})")
 
         except Exception as e:
-            logger.error(f"Failed to load recent requests: {e}")
+            logger.error(f"Failed to load recent requests: {e}", exc_info=True)
 

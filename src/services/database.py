@@ -183,7 +183,7 @@ class DatabaseService:
         """Execute query and fetch all rows"""
         conn = self.connect()
         cursor = conn.cursor()
-        if params:
+        if params is not None:
             cursor.execute(query, params)
         else:
             cursor.execute(query)
