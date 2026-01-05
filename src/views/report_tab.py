@@ -106,75 +106,85 @@ class ReportTab(QWidget, LoadingMixin):
         layout.setSpacing(12)
         layout.setContentsMargins(8, 12, 8, 8)
 
-        # Filter group
-        gb = QGroupBox("🔍 Bộ lọc dữ liệu")
-        gb.setStyleSheet(GROUPBOX_STYLE)
+        # Toolbar Frame (like Theo dõi thiết bị)
+        frame = QFrame()
+        frame.setStyleSheet(TOOLBAR_FRAME_STYLE)
 
-        gl = QGridLayout(gb)
-        gl.setSpacing(12)
-        gl.setContentsMargins(16, 20, 16, 16)
+        fl = QHBoxLayout(frame)
+        fl.setContentsMargins(12, 8, 12, 8)
+        fl.setSpacing(12)
 
         # Date range
-        lbl_from = QLabel("Từ ngày:")
-        lbl_from.setStyleSheet("font-weight: 500; color: #424242;")
-        gl.addWidget(lbl_from, 0, 0)
+        time_lbl = QLabel("<b style='color: #1565C0;'>📅 Thời gian:</b>")
+        fl.addWidget(time_lbl)
 
         self.r1_d1 = QDateEdit()
         self.r1_d1.setCalendarPopup(True)
         self.r1_d1.setDate(QDate.currentDate().addMonths(-1))
         self.r1_d1.setDisplayFormat("yyyy-MM-dd")
+        self.r1_d1.setMinimumWidth(120)
         self.r1_d1.setStyleSheet(self._date_style())
-        gl.addWidget(self.r1_d1, 0, 1)
+        fl.addWidget(self.r1_d1)
 
-        lbl_to = QLabel("Đến ngày:")
-        lbl_to.setStyleSheet("font-weight: 500; color: #424242;")
-        gl.addWidget(lbl_to, 0, 2)
+        sep_lbl = QLabel("→")
+        sep_lbl.setStyleSheet("color: #9E9E9E; font-size: 14px;")
+        fl.addWidget(sep_lbl)
 
         self.r1_d2 = QDateEdit()
         self.r1_d2.setCalendarPopup(True)
         self.r1_d2.setDate(QDate.currentDate())
         self.r1_d2.setDisplayFormat("yyyy-MM-dd")
+        self.r1_d2.setMinimumWidth(120)
         self.r1_d2.setStyleSheet(self._date_style())
-        gl.addWidget(self.r1_d2, 0, 3)
+        fl.addWidget(self.r1_d2)
+
+        # Separator
+        sep1 = QFrame()
+        sep1.setFrameShape(QFrame.Shape.VLine)
+        sep1.setStyleSheet("background-color: #CFD8DC; max-width: 1px;")
+        sep1.setFixedWidth(1)
+        fl.addWidget(sep1)
 
         # Requester filter
-        lbl_req = QLabel("Người YC:")
-        lbl_req.setStyleSheet("font-weight: 500; color: #424242;")
-        gl.addWidget(lbl_req, 1, 0)
+        req_lbl = QLabel("<b style='color: #1565C0;'>👤 Người YC:</b>")
+        fl.addWidget(req_lbl)
 
         self.r1_req = QComboBox()
         self.r1_req.setEditable(True)
         self.r1_req.addItem("Tất cả")
+        self.r1_req.setMinimumWidth(140)
         self.r1_req.setStyleSheet(self._combo_style())
         self._load_requesters()
-        gl.addWidget(self.r1_req, 1, 1)
+        fl.addWidget(self.r1_req)
 
-        self.r1_all_time = QCheckBox("📅 Lấy tất cả thời gian")
-        self.r1_all_time.setStyleSheet("font-weight: 500; color: #424242; spacing: 8px;")
-        gl.addWidget(self.r1_all_time, 1, 2, 1, 2)
+        # Separator
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.Shape.VLine)
+        sep2.setStyleSheet("background-color: #CFD8DC; max-width: 1px;")
+        sep2.setFixedWidth(1)
+        fl.addWidget(sep2)
 
-        layout.addWidget(gb)
+        # All time checkbox
+        self.r1_all_time = QCheckBox("📅 Tất cả thời gian")
+        self.r1_all_time.setStyleSheet("font-weight: 500; color: #424242;")
+        fl.addWidget(self.r1_all_time)
 
-        # Buttons row
-        h_btn = QHBoxLayout()
-        h_btn.setSpacing(12)
-        h_btn.addStretch()
+        fl.addStretch()
 
-        btn_view = QPushButton("  🔍 Xem báo cáo")
-        btn_view.setMinimumWidth(140)
+        # Buttons
+        btn_view = QPushButton("🔍 Xem")
         btn_view.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_view.setStyleSheet(BTN_STYLE_BLUE)
         btn_view.clicked.connect(self._load_report_1)
-        h_btn.addWidget(btn_view)
+        fl.addWidget(btn_view)
 
-        btn_exp = QPushButton("  📤 Xuất CSV")
-        btn_exp.setMinimumWidth(130)
+        btn_exp = QPushButton("📤 Xuất CSV")
         btn_exp.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_exp.setStyleSheet(BTN_STYLE_ORANGE)
         btn_exp.clicked.connect(lambda: self._export_csv(self.r1_table, "BaoCao_KetQua"))
-        h_btn.addWidget(btn_exp)
+        fl.addWidget(btn_exp)
 
-        layout.addLayout(h_btn)
+        layout.addWidget(frame)
 
         # Table
         self.r1_table = QTableView()

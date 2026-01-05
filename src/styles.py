@@ -404,28 +404,29 @@ INPUT_FORM_STYLE = """
 INPUT_TAB_STYLE = """
     QGroupBox {
         font-weight: 600;
-        font-size: 13px;
+        font-size: 12px;
         color: #1565C0;
         border: 1px solid #BBDEFB;
-        border-radius: 8px;
-        margin-top: 12px;
-        padding: 12px 8px 8px 8px;
+        border-radius: 6px;
+        margin-top: 8px;
+        padding: 8px 6px 6px 6px;
         background-color: #F5F9FF;
     }
     QGroupBox::title {
         subcontrol-origin: margin;
-        left: 12px;
-        padding: 0 6px;
+        left: 10px;
+        padding: 0 4px;
         background-color: #F5F9FF;
     }
     QLabel {
-        font-size: 12px;
+        font-size: 11px;
         color: #424242;
     }
     QLineEdit, QComboBox, QDateTimeEdit {
-        font-size: 12px;
-        padding: 6px 8px;
-        min-height: 28px;
+        font-size: 11px;
+        padding: 4px 6px;
+        min-height: 22px;
+        max-height: 24px;
         border: 1px solid #CFD8DC;
         border-radius: 4px;
         background-color: #FFFFFF;
@@ -438,12 +439,16 @@ INPUT_TAB_STYLE = """
         selection-color: #1565C0;
         border: 1px solid #CFD8DC;
     }
+    QComboBox QAbstractItemView::item {
+        padding: 4px 8px;
+        min-height: 20px;
+    }
     QLineEdit:hover, QComboBox:hover, QDateTimeEdit:hover {
         border-color: #90CAF9;
         background-color: #FAFEFF;
     }
     QLineEdit:focus, QComboBox:focus, QDateTimeEdit:focus {
-        border: 2px solid #1565C0;
+        border: 1.5px solid #1565C0;
     }
     QLineEdit:read-only {
         background-color: #ECEFF1;
