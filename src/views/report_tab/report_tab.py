@@ -19,7 +19,7 @@ from src.services.logger import get_logger
 from src.widgets.loading_overlay import LoadingMixin
 from src.styles import (
     BTN_STYLE_BLUE, BTN_STYLE_ORANGE, TABLE_STYLE,
-    TOOLBAR_FRAME_STYLE, INFO_LABEL_STYLE, TAB_STYLE
+    TOOLBAR_BLUE_STYLE, INFO_LABEL_STYLE, TAB_STYLE
 )
 from src.views.report_tab.gantt_renderer import GanttRenderer
 
@@ -63,19 +63,19 @@ class ReportTab(QWidget, LoadingMixin):
 
         # Filter frame
         frame = QFrame()
-        frame.setStyleSheet(TOOLBAR_FRAME_STYLE)
+        frame.setStyleSheet(TOOLBAR_BLUE_STYLE)
         fl = QHBoxLayout(frame)
         fl.setContentsMargins(16, 12, 16, 12)
         fl.setSpacing(12)
 
         # Date filters
-        fl.addWidget(QLabel("<b>📅 Từ:</b>"))
+        fl.addWidget(QLabel("<b style='color: #1565C0;'>📅 Từ:</b>"))
         self.r1_d1 = QDateEdit(QDate.currentDate().addMonths(-1))
         self.r1_d1.setCalendarPopup(True)
         self.r1_d1.setStyleSheet(self._date_style())
         fl.addWidget(self.r1_d1)
 
-        fl.addWidget(QLabel("<b>đến:</b>"))
+        fl.addWidget(QLabel("<b style='color: #1565C0;'>đến:</b>"))
         self.r1_d2 = QDateEdit(QDate.currentDate())
         self.r1_d2.setCalendarPopup(True)
         self.r1_d2.setStyleSheet(self._date_style())
@@ -83,10 +83,11 @@ class ReportTab(QWidget, LoadingMixin):
 
         self.r1_all_time = QCheckBox("Tất cả thời gian")
         self.r1_all_time.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.r1_all_time.setStyleSheet("color: #424242; font-size: 12px;")
         fl.addWidget(self.r1_all_time)
 
         # Requester filter
-        fl.addWidget(QLabel("<b>👤 Người YC:</b>"))
+        fl.addWidget(QLabel("<b style='color: #1565C0;'>👤 Người YC:</b>"))
         self.r1_req = QComboBox()
         self.r1_req.addItem("Tất cả")
         self.r1_req.setMinimumWidth(140)
@@ -97,13 +98,13 @@ class ReportTab(QWidget, LoadingMixin):
         fl.addStretch()
 
         # Buttons
-        btn_view = QPushButton("  🔍 Xem")
+        btn_view = QPushButton("🔍 Xem")
         btn_view.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_view.setStyleSheet(BTN_STYLE_BLUE)
         btn_view.clicked.connect(self._load_report_1)
         fl.addWidget(btn_view)
 
-        btn_export = QPushButton("  📤 Xuất CSV")
+        btn_export = QPushButton("📤 Xuất CSV")
         btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_export.setStyleSheet(BTN_STYLE_ORANGE)
         btn_export.clicked.connect(lambda: self._export_csv(self.r1_table, "BaoCao_ChiTiet"))
@@ -128,26 +129,26 @@ class ReportTab(QWidget, LoadingMixin):
 
         # Filter frame
         frame = QFrame()
-        frame.setStyleSheet(TOOLBAR_FRAME_STYLE)
+        frame.setStyleSheet(TOOLBAR_BLUE_STYLE)
         fl = QHBoxLayout(frame)
         fl.setContentsMargins(16, 12, 16, 12)
         fl.setSpacing(12)
 
         # Date filters
-        fl.addWidget(QLabel("<b>📅 Từ:</b>"))
+        fl.addWidget(QLabel("<b style='color: #1565C0;'>📅 Từ:</b>"))
         self.r2_d1 = QDateEdit(QDate.currentDate().addDays(-7))
         self.r2_d1.setCalendarPopup(True)
         self.r2_d1.setStyleSheet(self._date_style())
         fl.addWidget(self.r2_d1)
 
-        fl.addWidget(QLabel("<b>đến:</b>"))
+        fl.addWidget(QLabel("<b style='color: #1565C0;'>đến:</b>"))
         self.r2_d2 = QDateEdit(QDate.currentDate().addDays(14))
         self.r2_d2.setCalendarPopup(True)
         self.r2_d2.setStyleSheet(self._date_style())
         fl.addWidget(self.r2_d2)
 
         # Equipment filter
-        fl.addWidget(QLabel("<b>🔧 Thiết bị:</b>"))
+        fl.addWidget(QLabel("<b style='color: #1565C0;'>🔧 Thiết bị:</b>"))
         self.r2_equip = QComboBox()
         self.r2_equip.addItem("Tất cả Thiết Bị")
         self.r2_equip.setMinimumWidth(160)
@@ -159,15 +160,15 @@ class ReportTab(QWidget, LoadingMixin):
         self.r2_name_display.setReadOnly(True)
         self.r2_name_display.setPlaceholderText("Tên thiết bị...")
         self.r2_name_display.setStyleSheet("""
-            background: #ECEFF1; color: #607D8B;
-            border: 1px solid #CFD8DC; border-radius: 6px;
+            background: #E3F2FD; color: #1565C0;
+            border: 1px solid #BBDEFB; border-radius: 6px;
             padding: 6px 10px; min-height: 32px;
         """)
         fl.addWidget(self.r2_name_display, 1)
 
         self._load_equipments()
 
-        btn_view = QPushButton("  🔍 Xem")
+        btn_view = QPushButton("🔍 Xem")
         btn_view.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_view.setMinimumWidth(110)
         btn_view.setStyleSheet(BTN_STYLE_BLUE)

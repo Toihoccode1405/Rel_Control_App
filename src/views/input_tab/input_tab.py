@@ -32,32 +32,18 @@ logger = get_logger("input_tab")
 class InputTab(QWidget):
     """Tab nhập liệu với giao diện Material Design đẹp"""
 
-    # GroupBox styles
-    SCHEDULE_GROUP_STYLE = """
+    # GroupBox styles - thống nhất màu xanh dương
+    GROUPBOX_BLUE = """
         QGroupBox {
-            font-weight: 600; font-size: 12px; color: #E65100;
-            border: 1px solid #FFE0B2; border-radius: 6px;
+            font-weight: 600; font-size: 12px; color: #1565C0;
+            border: 1px solid #BBDEFB; border-radius: 6px;
             margin-top: 12px; padding: 8px 8px 6px 8px;
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #FFFAF5, stop:1 #FFF8E1);
+                stop:0 #F8FBFF, stop:1 #F0F7FF);
         }
         QGroupBox::title {
             subcontrol-origin: margin; left: 12px; padding: 0 6px;
-            background-color: #FFF3E0; border-radius: 3px;
-        }
-    """
-
-    NOTE_GROUP_STYLE = """
-        QGroupBox {
-            font-weight: 600; font-size: 12px; color: #7B1FA2;
-            border: 1px solid #E1BEE7; border-radius: 6px;
-            margin-top: 12px; padding: 8px 8px 6px 8px;
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #FDF5FF, stop:1 #F3E5F5);
-        }
-        QGroupBox::title {
-            subcontrol-origin: margin; left: 12px; padding: 0 6px;
-            background-color: #F3E5F5; border-radius: 3px;
+            background-color: #E3F2FD; border-radius: 3px;
         }
     """
 
@@ -133,7 +119,7 @@ class InputTab(QWidget):
     def _setup_schedule_group(self, parent_layout):
         """Setup nhóm lịch trình với style đẹp"""
         grp = QGroupBox("📅 Lịch Trình Test")
-        grp.setStyleSheet(self.SCHEDULE_GROUP_STYLE)
+        grp.setStyleSheet(self.GROUPBOX_BLUE)
 
         grid = QGridLayout(grp)
         grid.setSpacing(6)
@@ -155,12 +141,12 @@ class InputTab(QWidget):
             dt.setDateTime(QDateTime.currentDateTime())
             dt.setStyleSheet("""
                 QDateTimeEdit {
-                    border: 1px solid #FFE0B2; border-radius: 4px;
+                    border: 1px solid #BBDEFB; border-radius: 4px;
                     padding: 4px 6px; background-color: #FFFFFF;
                     font-size: 11px; min-height: 24px;
                 }
-                QDateTimeEdit:hover { border-color: #FFB74D; }
-                QDateTimeEdit:focus { border: 1.5px solid #FF9800; }
+                QDateTimeEdit:hover { border-color: #90CAF9; }
+                QDateTimeEdit:focus { border: 1.5px solid #1565C0; }
             """)
             grid.addWidget(dt, 0, col * 2 + 1)
             self.widgets[key] = dt
@@ -170,7 +156,7 @@ class InputTab(QWidget):
     def _setup_note_group(self, parent_layout):
         """Setup nhóm ghi chú và log với style đẹp"""
         grp = QGroupBox("📝 Thông Tin Thêm")
-        grp.setStyleSheet(self.NOTE_GROUP_STYLE)
+        grp.setStyleSheet(self.GROUPBOX_BLUE)
 
         grid = QGridLayout(grp)
         grid.setSpacing(6)
@@ -186,8 +172,8 @@ class InputTab(QWidget):
 
         self.log_label = QLabel("Chưa chọn file...")
         self.log_label.setStyleSheet("""
-            background-color: #F3E5F5; padding: 4px 8px; border-radius: 4px;
-            color: #7B1FA2; font-size: 11px;
+            background-color: #E3F2FD; padding: 4px 8px; border-radius: 4px;
+            color: #1565C0; font-size: 11px;
         """)
         log_layout.addWidget(self.log_label, stretch=1)
 
@@ -195,10 +181,10 @@ class InputTab(QWidget):
         btn_log.setFixedSize(28, 24)
         btn_log.setStyleSheet("""
             QPushButton {
-                background-color: #E1BEE7; border: none; border-radius: 4px;
+                background-color: #E3F2FD; border: 1px solid #BBDEFB; border-radius: 4px;
                 font-size: 12px;
             }
-            QPushButton:hover { background-color: #CE93D8; }
+            QPushButton:hover { background-color: #BBDEFB; }
         """)
         btn_log.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_log.clicked.connect(self._pick_log_file)
@@ -215,12 +201,12 @@ class InputTab(QWidget):
         self.widgets["note"].setPlaceholderText("Nhập ghi chú...")
         self.widgets["note"].setStyleSheet("""
             QLineEdit {
-                border: 1px solid #E1BEE7; border-radius: 4px;
+                border: 1px solid #BBDEFB; border-radius: 4px;
                 padding: 4px 8px; background-color: #FFFFFF;
                 font-size: 11px; min-height: 24px;
             }
-            QLineEdit:hover { border-color: #CE93D8; }
-            QLineEdit:focus { border: 1.5px solid #9C27B0; }
+            QLineEdit:hover { border-color: #90CAF9; }
+            QLineEdit:focus { border: 1.5px solid #1565C0; }
         """)
         grid.addWidget(self.widgets["note"], 1, 1)
 
@@ -235,8 +221,8 @@ class InputTab(QWidget):
         dri = QLineEdit(self.user_info.get('name', ''))
         dri.setReadOnly(True)
         dri.setStyleSheet("""
-            background-color: #F3E5F5; color: #7B1FA2;
-            border: 1px solid #E1BEE7; border-radius: 4px;
+            background-color: #E3F2FD; color: #1565C0;
+            border: 1px solid #BBDEFB; border-radius: 4px;
             padding: 4px 8px; font-size: 11px; min-height: 24px;
         """)
         grid.addWidget(dri, 2, 1)

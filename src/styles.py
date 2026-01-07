@@ -316,6 +316,39 @@ GROUPBOX_STYLE = """
     }
 """
 
+GROUPBOX_BLUE_STYLE = """
+    QGroupBox {
+        font-weight: 600; font-size: 12px; color: #1565C0;
+        border: 1px solid #BBDEFB; border-radius: 6px;
+        margin-top: 12px; padding: 8px 8px 6px 8px;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #F8FBFF, stop:1 #F0F7FF);
+    }
+    QGroupBox::title {
+        subcontrol-origin: margin; left: 12px; padding: 0 6px;
+        background-color: #E3F2FD; border-radius: 3px;
+    }
+"""
+
+TOOLBAR_BLUE_STYLE = """
+    QFrame {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #FFFFFF, stop:0.5 #F8FBFF, stop:1 #F0F7FF);
+        border: 1px solid #BBDEFB;
+        border-radius: 8px;
+        margin: 2px 0;
+    }
+"""
+
+FILTER_BLUE_STYLE = """
+    QFrame {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #F8FBFF, stop:1 #E3F2FD);
+        border: 1px solid #BBDEFB;
+        border-radius: 8px;
+    }
+"""
+
 # ========== CARD STYLE ==========
 CARD_STYLE = """
     QFrame#Card {

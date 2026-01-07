@@ -3,9 +3,9 @@ kRel - Settings Pages: Equipment
 Quản lý thiết bị
 """
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QFrame,
     QLabel, QLineEdit, QPushButton, QTableView, QDialog,
-    QAbstractItemView, QHeaderView, QMessageBox, QStyle
+    QAbstractItemView, QHeaderView, QMessageBox
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem
@@ -24,44 +24,54 @@ logger = get_logger("equipment_page")
 
 class EquipmentPage(QWidget):
     """Trang quản lý thiết bị"""
-    
+
+    TOOLBAR_STYLE = """
+        QFrame {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #FFFFFF, stop:0.5 #F8FBFF, stop:1 #F0F7FF);
+            border: 1px solid #BBDEFB;
+            border-radius: 8px;
+        }
+    """
+
     def __init__(self):
         super().__init__()
         self.db = get_db()
         self._setup_ui()
         self._load()
-    
+
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(12)
 
-        # Header
-        header = QHBoxLayout()
+        # Header toolbar
+        toolbar = QFrame()
+        toolbar.setStyleSheet(self.TOOLBAR_STYLE)
+        header = QHBoxLayout(toolbar)
+        header.setContentsMargins(16, 10, 16, 10)
         header.setSpacing(12)
+
         header.addWidget(QLabel("<b style='font-size: 16px; color: #1565C0;'>🔧 QUẢN LÝ THIẾT BỊ</b>"))
         header.addStretch()
 
         # Buttons
-        btn_add = QPushButton("  ➕ Thêm Mới")
-        btn_add.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
+        btn_add = QPushButton("➕ Thêm Mới")
         btn_add.setStyleSheet(BTN_STYLE_BLUE)
         btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_add.clicked.connect(self._add)
 
-        btn_edit = QPushButton("  ✏️ Sửa")
-        btn_edit.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
+        btn_edit = QPushButton("✏️ Sửa")
         btn_edit.setStyleSheet(BTN_STYLE_GREEN)
         btn_edit.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_edit.clicked.connect(self._edit)
 
-        btn_del = QPushButton("  🗑️ Xóa")
-        btn_del.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon))
+        btn_del = QPushButton("🗑️ Xóa")
         btn_del.setStyleSheet(BTN_STYLE_RED)
         btn_del.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_del.clicked.connect(self._delete)
 
-        btn_csv = QPushButton("  📤 CSV")
-        btn_csv.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DriveFDIcon))
+        btn_csv = QPushButton("📤 CSV")
         btn_csv.setStyleSheet(BTN_STYLE_ORANGE)
         btn_csv.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_csv.clicked.connect(self._csv_dialog)
@@ -69,8 +79,7 @@ class EquipmentPage(QWidget):
         for btn in [btn_add, btn_edit, btn_del, btn_csv]:
             header.addWidget(btn)
 
-        layout.addLayout(header)
-        layout.addSpacing(12)
+        layout.addWidget(toolbar)
 
         # Table
         self.table = QTableView()

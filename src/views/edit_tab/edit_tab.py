@@ -9,7 +9,7 @@ from configparser import ConfigParser
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel,
     QPushButton, QComboBox, QHeaderView,
-    QFileDialog, QMessageBox, QStyle
+    QFileDialog, QMessageBox
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
@@ -21,7 +21,7 @@ from src.services.logger import get_logger, log_audit
 from src.services.data_event_bus import get_event_bus
 from src.styles import (
     BTN_STYLE_BLUE, BTN_STYLE_GREEN_SOLID, BTN_STYLE_ORANGE_SOLID,
-    TABLE_STYLE, TOOLBAR_FRAME_STYLE, FILTER_FRAME_STYLE
+    TABLE_STYLE, TOOLBAR_BLUE_STYLE, FILTER_BLUE_STYLE
 )
 from src.widgets.loading_overlay import LoadingMixin
 
@@ -89,78 +89,98 @@ class EditTab(QWidget, LoadingMixin):
         bus.request_created.connect(lambda _: self._refresh())
 
     def _setup_ui(self):
-        """Setup UI"""
+        """Setup UI với giao diện đẹp"""
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setContentsMargins(12, 8, 12, 8)
         main_layout.setSpacing(8)
-        
+
         self._setup_filter_bar(main_layout)
         self._setup_toolbar(main_layout)
-        
+
         # Table container
         self.table_container = QVBoxLayout()
         self.table_container.setSpacing(0)
         main_layout.addLayout(self.table_container)
 
     def _setup_filter_bar(self, parent_layout):
-        """Setup filter bar"""
+        """Setup filter bar với style đẹp"""
         frame = QFrame()
-        frame.setStyleSheet(FILTER_FRAME_STYLE)
+        frame.setStyleSheet(FILTER_BLUE_STYLE)
         layout = QHBoxLayout(frame)
-        layout.setContentsMargins(12, 8, 12, 8)
-        
-        layout.addWidget(QLabel("<b style='color: #1565C0;'>🔍 Lọc:</b>"))
-        
+        layout.setContentsMargins(16, 10, 16, 10)
+        layout.setSpacing(12)
+
+        # Filter icon and label
+        layout.addWidget(QLabel("<b style='color: #1565C0; font-size: 13px;'>🔍 Lọc dữ liệu:</b>"))
+
         # Status filter
         self.cb_filter_status = QComboBox()
         self.cb_filter_status.setMinimumWidth(150)
+        self.cb_filter_status.setStyleSheet(self._combo_style())
         self.cb_filter_status.currentTextChanged.connect(lambda _: self._load_data())
         layout.addWidget(self.cb_filter_status)
-        
+
         # Result filter
         self.cb_filter_result = QComboBox()
         self.cb_filter_result.addItems(["Tất cả KQ", "-", "Pass", "Fail", "Waiver"])
         self.cb_filter_result.setMinimumWidth(120)
+        self.cb_filter_result.setStyleSheet(self._combo_style())
         self.cb_filter_result.currentTextChanged.connect(lambda _: self._load_data())
         layout.addWidget(self.cb_filter_result)
-        
+
         layout.addStretch()
         parent_layout.addWidget(frame)
 
     def _setup_toolbar(self, parent_layout):
-        """Setup toolbar"""
+        """Setup toolbar với style đẹp"""
         toolbar = QFrame()
-        toolbar.setStyleSheet(TOOLBAR_FRAME_STYLE)
+        toolbar.setStyleSheet(TOOLBAR_BLUE_STYLE)
         layout = QHBoxLayout(toolbar)
-        layout.setContentsMargins(12, 8, 12, 8)
-        
+        layout.setContentsMargins(16, 10, 16, 10)
+        layout.setSpacing(12)
+
         # Refresh button
-        btn_refresh = QPushButton("  🔄 Tải lại")
-        btn_refresh.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
+        btn_refresh = QPushButton("🔄 Tải lại")
         btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_refresh.clicked.connect(self._refresh)
         btn_refresh.setStyleSheet(BTN_STYLE_BLUE)
         layout.addWidget(btn_refresh)
-        
+
         layout.addStretch()
-        
+
         # Save button
-        btn_save = QPushButton("  💾 Lưu tất cả")
-        btn_save.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
+        btn_save = QPushButton("💾 Lưu tất cả")
         btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_save.clicked.connect(self._save)
         btn_save.setStyleSheet(BTN_STYLE_GREEN_SOLID)
         layout.addWidget(btn_save)
-        
+
         # Export button
-        btn_export = QPushButton("  📤 Xuất CSV")
-        btn_export.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DriveFDIcon))
+        btn_export = QPushButton("📤 Xuất CSV")
         btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_export.clicked.connect(self._export_csv)
         btn_export.setStyleSheet(BTN_STYLE_ORANGE_SOLID)
         layout.addWidget(btn_export)
-        
+
         parent_layout.addWidget(toolbar)
+
+    def _combo_style(self):
+        """Style cho combo box"""
+        return """
+            QComboBox {
+                border: 1px solid #BBDEFB; border-radius: 5px;
+                padding: 6px 12px; background-color: #FFFFFF;
+                min-height: 28px; font-size: 12px; color: #212121;
+            }
+            QComboBox:hover { border-color: #90CAF9; background-color: #FAFEFF; }
+            QComboBox:focus { border: 1.5px solid #1565C0; }
+            QComboBox::drop-down { border: none; width: 24px; }
+            QComboBox QAbstractItemView {
+                background-color: #FFFFFF; color: #212121;
+                selection-background-color: #E3F2FD; selection-color: #1565C0;
+                border: 1px solid #BBDEFB; border-radius: 4px;
+            }
+        """
 
     def _init_filter_list(self):
         """Initialize status filter list"""

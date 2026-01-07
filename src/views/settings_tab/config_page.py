@@ -26,12 +26,27 @@ from src.styles import (
 
 class ConfigPage(QWidget):
     """Trang cấu hình SQL Server"""
-    
+
+    FRAME_STYLE = """
+        QFrame {
+            border: 1px solid #BBDEFB; border-radius: 8px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #F8FBFF, stop:1 #F0F7FF);
+        }
+        QLabel { font-weight: 500; color: #424242; }
+        QLineEdit {
+            background: white; border: 1px solid #BBDEFB; border-radius: 6px;
+            padding: 8px 12px; min-height: 36px; font-size: 13px;
+        }
+        QLineEdit:hover { border-color: #90CAF9; }
+        QLineEdit:focus { border: 2px solid #1565C0; }
+    """
+
     def __init__(self):
         super().__init__()
         self.encryption = EncryptionService()
         self._setup_ui()
-    
+
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(32, 32, 32, 32)
@@ -43,16 +58,7 @@ class ConfigPage(QWidget):
 
         # Config frame
         frame = QFrame()
-        frame.setStyleSheet("""
-            QFrame { border: 1px solid #E0E0E0; border-radius: 8px; background-color: #FAFAFA; }
-            QLabel { font-weight: 500; color: #424242; }
-            QLineEdit {
-                background: white; border: 1px solid #CFD8DC; border-radius: 6px;
-                padding: 8px 12px; min-height: 36px; font-size: 13px;
-            }
-            QLineEdit:hover { border-color: #90CAF9; }
-            QLineEdit:focus { border: 2px solid #1565C0; }
-        """)
+        frame.setStyleSheet(self.FRAME_STYLE)
         
         fl = QFormLayout(frame)
         fl.setContentsMargins(24, 24, 24, 24)

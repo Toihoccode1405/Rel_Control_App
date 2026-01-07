@@ -37,8 +37,8 @@ class FormBuilder:
     COMBO_FIELDS = ["factory", "project", "phase", "category", "equip_no", "status"]
     REQUIRED_FIELDS = ["request_no", "requester", "factory", "project"]
 
-    # GroupBox styles
-    INFO_GROUP_STYLE = """
+    # GroupBox styles - thống nhất màu xanh dương
+    GROUPBOX_BLUE = """
         QGroupBox {
             font-weight: 600; font-size: 12px; color: #1565C0;
             border: 1px solid #BBDEFB; border-radius: 6px;
@@ -52,20 +52,6 @@ class FormBuilder:
         }
     """
 
-    TEST_GROUP_STYLE = """
-        QGroupBox {
-            font-weight: 600; font-size: 12px; color: #2E7D32;
-            border: 1px solid #C8E6C9; border-radius: 6px;
-            margin-top: 12px; padding: 8px 8px 6px 8px;
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #F8FFF8, stop:1 #F1F8E9);
-        }
-        QGroupBox::title {
-            subcontrol-origin: margin; left: 12px; padding: 0 6px;
-            background-color: #E8F5E9; border-radius: 3px;
-        }
-    """
-
     def __init__(self, parent: QWidget):
         self.parent = parent
         self.widgets = {}
@@ -76,7 +62,7 @@ class FormBuilder:
         """Tạo form nhập liệu với GroupBox đẹp"""
         # ===== THÔNG TIN YÊU CẦU =====
         info_group = QGroupBox("📋 Thông Tin Yêu Cầu")
-        info_group.setStyleSheet(self.INFO_GROUP_STYLE)
+        info_group.setStyleSheet(self.GROUPBOX_BLUE)
         info_layout = QGridLayout(info_group)
         info_layout.setSpacing(6)
         info_layout.setContentsMargins(10, 8, 10, 8)
@@ -97,7 +83,7 @@ class FormBuilder:
 
         # ===== KẾT QUẢ TEST =====
         test_group = QGroupBox("📊 Kết Quả Test")
-        test_group.setStyleSheet(self.TEST_GROUP_STYLE)
+        test_group.setStyleSheet(self.GROUPBOX_BLUE)
         test_layout = QGridLayout(test_group)
         test_layout.setSpacing(6)
         test_layout.setContentsMargins(10, 8, 10, 8)

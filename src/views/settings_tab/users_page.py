@@ -14,25 +14,35 @@ from PyQt6.QtGui import QStandardItemModel, QStandardItem
 import pandas as pd
 
 from src.services.database import get_db
-from src.styles import BTN_STYLE_BLUE, BTN_STYLE_GREEN, BTN_STYLE_RED
+from src.styles import BTN_STYLE_BLUE, BTN_STYLE_GREEN, BTN_STYLE_RED, TABLE_STYLE
 
 
 class UsersPage(QWidget):
     """Trang quản lý users"""
-    
+
+    FORM_STYLE = """
+        QLineEdit, QComboBox {
+            border: 1px solid #BBDEFB; border-radius: 5px;
+            padding: 6px 10px; background-color: #FFFFFF;
+            min-height: 28px; font-size: 12px;
+        }
+        QLineEdit:hover, QComboBox:hover { border-color: #90CAF9; }
+        QLineEdit:focus, QComboBox:focus { border: 1.5px solid #1565C0; }
+    """
+
     def __init__(self):
         super().__init__()
         self.db = get_db()
         self._setup_ui()
         self._load_users()
-    
+
     def _setup_ui(self):
         layout = QHBoxLayout(self)
 
         # Table
         self.tbl_users = QTableView()
         self.tbl_users.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.tbl_users.setStyleSheet("QTableView { border: 1px solid #E0E0E0; }")
+        self.tbl_users.setStyleSheet(TABLE_STYLE)
         self.tbl_users.verticalHeader().hide()
         self.tbl_users.clicked.connect(self._on_user_click)
         layout.addWidget(self.tbl_users, 7)
@@ -40,7 +50,10 @@ class UsersPage(QWidget):
         # Form
         right = QVBoxLayout()
         right.setContentsMargins(10, 0, 0, 0)
-        right.addWidget(QLabel("<h3>Thông tin User</h3>"))
+        right.addWidget(QLabel("<h3 style='color: #1565C0;'>👤 Thông tin User</h3>"))
+
+        form_widget = QWidget()
+        form_widget.setStyleSheet(self.FORM_STYLE)
 
         self.u_username = QLineEdit()
         self.u_username.setPlaceholderText("Username")
@@ -54,14 +67,14 @@ class UsersPage(QWidget):
         self.u_role = QComboBox()
         self.u_role.addItems(["Operator", "Engineer", "Manager", "Super"])
 
-        form = QFormLayout()
+        form = QFormLayout(form_widget)
         form.setSpacing(10)
         form.addRow("User:", self.u_username)
         form.addRow("Pass:", self.u_password)
         form.addRow("Name:", self.u_fullname)
         form.addRow("Email:", self.u_email)
         form.addRow("Role:", self.u_role)
-        right.addLayout(form)
+        right.addWidget(form_widget)
 
         # Buttons
         hb = QHBoxLayout()

@@ -24,7 +24,7 @@ logger = get_logger("general_page")
 
 class GeneralDataPage(QWidget):
     """Trang quản lý dữ liệu chung"""
-    
+
     SIMPLE_TABLES = {
         "🏭 Nhà máy": "factory",
         "📁 Dự án": "project",
@@ -32,25 +32,34 @@ class GeneralDataPage(QWidget):
         "📋 Hạng mục": "category",
         "🔄 Trạng thái": "status"
     }
-    
+
+    GROUPBOX_BLUE = """
+        QGroupBox {
+            font-weight: 600; font-size: 12px; color: #1565C0;
+            border: 1px solid #BBDEFB; border-radius: 6px;
+            margin-top: 12px; padding: 8px 8px 6px 8px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #F8FBFF, stop:1 #F0F7FF);
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin; left: 12px; padding: 0 6px;
+            background-color: #E3F2FD; border-radius: 3px;
+        }
+    """
+
     def __init__(self):
         super().__init__()
         self.db = get_db()
         self.views = {}
         self._setup_ui()
-    
+
     def _setup_ui(self):
         layout = QHBoxLayout(self)
         layout.setSpacing(15)
 
         for title, table in self.SIMPLE_TABLES.items():
             frame = QGroupBox(title)
-            frame.setStyleSheet("""
-                QGroupBox {
-                    font-weight: bold; border: 1px solid #D1D5DB;
-                    border-radius: 4px; margin-top: 10px; background: #FAFAFA;
-                }
-            """)
+            frame.setStyleSheet(self.GROUPBOX_BLUE)
 
             vl = QVBoxLayout(frame)
             vl.setContentsMargins(5, 15, 5, 5)
