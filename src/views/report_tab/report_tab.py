@@ -331,7 +331,7 @@ class ReportTab(QWidget, LoadingMixin):
         sql += " ORDER BY request_date DESC"
 
         headers = [
-            "Mã YC", "Nhà máy", "Dự án", "Giai đoạn", "Hạng mục", "SL",
+            "STT", "Mã YC", "Nhà máy", "Dự án", "Giai đoạn", "Hạng mục", "SL",
             "Người YC", "KQ N.Quan", "KQ T.Năng",
             "KQ X-Hatch", "KQ X-Section", "KQ Cuối"
         ]
@@ -347,15 +347,26 @@ class ReportTab(QWidget, LoadingMixin):
             model = QStandardItemModel()
             model.setHorizontalHeaderLabels(headers)
 
+            # Check if headers include STT column
+            has_stt = "STT" in headers
             col_final_idx = headers.index("KQ Cuối") if "KQ Cuối" in headers else -1
 
-            for _, row in df.iterrows():
+            for row_idx, (_, row) in enumerate(df.iterrows(), start=1):
                 items = []
+
+                # Add STT column if headers include it
+                if has_stt:
+                    stt_item = QStandardItem(str(row_idx))
+                    stt_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    items.append(stt_item)
+
                 for i, x in enumerate(row):
                     val = str(x) if x is not None else ""
                     item = QStandardItem(val)
 
-                    if i == col_final_idx:
+                    # Adjust index for KQ Cuối when STT is present
+                    actual_col_idx = i + 1 if has_stt else i
+                    if actual_col_idx == col_final_idx:
                         font = QFont("Arial", 9)
                         font.setBold(True)
                         item.setFont(font)
@@ -372,9 +383,13 @@ class ReportTab(QWidget, LoadingMixin):
                 model.appendRow(items)
 
             table_view.setModel(model)
-            table_view.horizontalHeader().setSectionResizeMode(
-                QHeaderView.ResizeMode.ResizeToContents
-            )
+            header = table_view.horizontalHeader()
+            header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+
+            # Set STT column width if present
+            if has_stt:
+                header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+                table_view.setColumnWidth(0, 50)
 
             if not df.empty:
                 QMessageBox.information(self, "OK", f"Đã tải {len(df)} dòng.")
