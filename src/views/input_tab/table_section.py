@@ -7,9 +7,17 @@ from PyQt6.QtWidgets import (
     QLineEdit, QComboBox, QPushButton, QTableView, QHeaderView
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QStandardItemModel, QStandardItem
+from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
 
 from src.styles import BTN_STYLE_BLUE, BTN_STYLE_GREEN, BTN_STYLE_RED, BTN_STYLE_ORANGE, TABLE_STYLE
+
+# Result text colors
+RESULT_TEXT_COLORS = {
+    "Pass": "#2E7D32",    # Green
+    "Fail": "#C62828",    # Red
+    "Waiver": "#F57C00",  # Orange
+    "-": "#757575"        # Gray
+}
 
 
 class TableSection:
@@ -210,7 +218,18 @@ class TableSection:
         for idx, row in enumerate(rows, start=1):
             stt_item = QStandardItem(str(idx))
             stt_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            items = [stt_item] + [QStandardItem(str(v) if v else "") for v in row]
+
+            items = [stt_item]
+            for i, v in enumerate(row):
+                val = str(v) if v else ""
+                item = QStandardItem(val)
+
+                # KQ Cuối column (index 16 in row, which is last column)
+                if i == len(row) - 1 and val in RESULT_TEXT_COLORS:
+                    item.setForeground(QColor(RESULT_TEXT_COLORS[val]))
+
+                items.append(item)
+
             model.appendRow(items)
 
         self.table.setModel(model)

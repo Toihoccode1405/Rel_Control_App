@@ -1,6 +1,6 @@
 """
 kRel - Edit Tab (Refactored)
-Tab chỉnh sửa dữ liệu với frozen columns support
+Tab chỉnh sửa dữ liệu
 """
 import os
 import shutil
@@ -8,33 +8,32 @@ from configparser import ConfigParser
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel,
-    QPushButton, QComboBox, QHeaderView,
+    QPushButton, QComboBox, QHeaderView, QTableView,
     QFileDialog, QMessageBox
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
 import pandas as pd
 
-from src.config import CONFIG_FILE, DEFAULT_LOG_PATH, STATUS_COLORS
+from src.config import CONFIG_FILE, DEFAULT_LOG_PATH
 from src.services.database import get_db
 from src.services.logger import get_logger, log_audit
 from src.services.data_event_bus import get_event_bus
 from src.styles import (
     BTN_STYLE_BLUE, BTN_STYLE_GREEN_SOLID, BTN_STYLE_ORANGE_SOLID, BTN_STYLE_RED,
-    TABLE_STYLE, TOOLBAR_BLUE_STYLE, FILTER_BLUE_STYLE
+    TOOLBAR_BLUE_STYLE, FILTER_BLUE_STYLE
 )
 from src.widgets.loading_overlay import LoadingMixin
 
 from src.views.edit_tab.delegates import (
     ComboDelegate, DateDelegate, RecipeDelegate, NoEditDelegate
 )
-from src.views.edit_tab.frozen_table import FrozenTableView
 
 logger = get_logger("edit_tab")
 
 # Database columns - must match actual DB order
 DB_SELECT_COLS = [
-    "id", "status", "request_no", "request_date", "requester", "factory", "project",
+    "status", "id", "request_no", "request_date", "requester", "factory", "project",
     "phase", "category", "detail", "qty",
     "cos", "hcross", "xcross", "func_test",
     "cos_res", "xhatch_res", "xsection_res", "func_res", "final_res",
@@ -51,7 +50,7 @@ class EditTab(QWidget, LoadingMixin):
 
     # Column index to lookup table mapping
     COL_MAP = {
-        1: "status", 5: "factory", 6: "project", 7: "phase",
+        0: "status", 5: "factory", 6: "project", 7: "phase",
         8: "category", 20: "equipment"
     }
 
@@ -61,7 +60,7 @@ class EditTab(QWidget, LoadingMixin):
     DATE_COLS = [3, 23, 24, 26, 27]
 
     HEADERS = [
-        "ID", "Trạng thái", "Mã YC", "Ngày YC", "Người YC", "Nhà máy", "Dự án", "Giai đoạn",
+        "Trạng thái", "ID", "Mã YC", "Ngày YC", "Người YC", "Nhà máy", "Dự án", "Giai đoạn",
         "Hạng mục", "Chi tiết", "SL",
         "Ngoại quan", "Cross hatch", "Cross section", "Tính năng",
         "KQ Ngoại Quan", "KQ X-Hatch", "KQ X-Section", "KQ Tính Năng", "KQ Cuối",
@@ -275,17 +274,58 @@ class EditTab(QWidget, LoadingMixin):
         self.model.setHorizontalHeaderLabels(self.HEADERS)
 
         lemon_bg = QColor("#FFF9C4")
+        white_bg = QColor("#FFFFFF")
+
+        # Text colors for results and status
+        result_colors = {
+            "Pass": QColor("#2E7D32"),    # Green
+            "Fail": QColor("#C62828"),    # Red
+            "Waiver": QColor("#F57C00"),  # Orange
+            "-": QColor("#757575")        # Gray
+        }
+        status_colors = {
+            "Done": QColor("#2E7D32"),
+            "Finish": QColor("#2E7D32"),
+            "Ongoing": QColor("#1565C0"),
+            "Running": QColor("#1565C0"),
+            "Pending": QColor("#F57C00"),
+            "Wait": QColor("#F57C00"),
+            "Stop": QColor("#C62828"),
+            "Cancel": QColor("#9E9E9E"),
+            "Not Start": QColor("#757575")
+        }
 
         for _, row in df.iterrows():
-            # status is now col 1
-            status_val = str(row.iloc[1]) if row.iloc[1] else ""
-            row_bg = QColor(STATUS_COLORS.get(status_val, DEFAULT_COLOR))
-
             items = []
-            for v in row:
-                val = str(v) if v is not None else ""
+            for col_idx, v in enumerate(row):
+                # Handle None, NaN, and empty values
+                # Also handle string "nan" from pandas conversion
+                if v is None or (isinstance(v, float) and pd.isna(v)):
+                    val = ""
+                elif pd.isna(v):  # Catch any other NaN types
+                    val = ""
+                else:
+                    val = str(v).strip()
+                    # Handle string "nan" or "None" from pandas
+                    if val.lower() in ("nan", "none", "nat"):
+                        val = ""
+
                 item = QStandardItem(val)
-                item.setBackground(lemon_bg if not val.strip() else row_bg)
+
+                # Set background yellow for empty cells
+                if not val:
+                    item.setBackground(lemon_bg)
+                else:
+                    item.setBackground(white_bg)
+
+                # Set text color for status column (col 0)
+                if col_idx == 0 and val in status_colors:
+                    item.setForeground(status_colors[val])
+
+                # Set text color for result columns (15-19)
+                if col_idx in self.RESULT_COLS and val in result_colors:
+                    item.setForeground(result_colors[val])
+
                 items.append(item)
 
             self.model.appendRow(items)
@@ -298,7 +338,47 @@ class EditTab(QWidget, LoadingMixin):
             self.table_container.removeWidget(self.table)
             self.table.deleteLater()
 
-        self.table = FrozenTableView(self.model, frozen_col_count=4)
+        self.table = QTableView()
+        self.table.setModel(self.model)
+        # Custom style - remove background from item to let delegate paint it
+        self.table.setStyleSheet("""
+            QTableView {
+                border: 1px solid #BBDEFB;
+                border-radius: 8px;
+                gridline-color: #E3F2FD;
+                background-color: white;
+                selection-background-color: #BBDEFB;
+                selection-color: #1565C0;
+                font-size: 13px;
+                color: #212121;
+            }
+            QTableView::item {
+                padding: 6px 8px;
+                border-bottom: 1px solid #E3F2FD;
+            }
+            QTableView::item:selected {
+                background-color: #BBDEFB;
+                color: #1565C0;
+            }
+            QHeaderView::section {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #E3F2FD, stop:0.5 #BBDEFB, stop:1 #E3F2FD);
+                color: #1565C0;
+                padding: 8px 6px;
+                border: none;
+                border-right: 1px solid #90CAF9;
+                border-bottom: 2px solid #1565C0;
+                font-weight: 600;
+                font-size: 12px;
+            }
+            QTableView QTableCornerButton::section {
+                background: #E3F2FD;
+                border: none;
+                border-bottom: 2px solid #1565C0;
+            }
+        """)
+        self.table.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QTableView.SelectionMode.ExtendedSelection)
         self.table.doubleClicked.connect(self._handle_double_click)
         self._setup_delegates(data)
         self._setup_column_widths()
@@ -307,16 +387,11 @@ class EditTab(QWidget, LoadingMixin):
     def _setup_delegates(self, data: dict):
         """Setup table delegates"""
         self.table.setItemDelegate(ComboDelegate(self.table, data))
-        self.table.frozen.setItemDelegate(ComboDelegate(self.table.frozen, data))
 
-        # Date delegate for request_date (col 3)
-        self.table.setItemDelegateForColumn(3, DateDelegate(self.table))
-        self.table.frozen.setItemDelegateForColumn(3, DateDelegate(self.table.frozen))
-
+        # Date delegate for all date columns
         dd = DateDelegate(self.table)
         for col in self.DATE_COLS:
-            if col >= 4:
-                self.table.setItemDelegateForColumn(col, dd)
+            self.table.setItemDelegateForColumn(col, dd)
 
         # RecipeDelegate for test_condition (col 22), references equip_no (col 20)
         self.table.setItemDelegateForColumn(22, RecipeDelegate(self.table, equip_col=20))
@@ -327,25 +402,58 @@ class EditTab(QWidget, LoadingMixin):
         """Setup column widths"""
         h = self.table.horizontalHeader()
         h.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        for i in range(4):
-            width = 120 if i > 0 else 50
-            self.table.setColumnWidth(i, width)
-            self.table.frozen.setColumnWidth(i, width)
+        # Set specific widths for first columns: Trạng thái, ID, Mã YC, Ngày YC
+        col_widths = [90, 50, 110, 95]  # Increased Trạng thái width
+        for i, w in enumerate(col_widths):
+            h.setSectionResizeMode(i, QHeaderView.ResizeMode.Fixed)
+            self.table.setColumnWidth(i, w)
         h.setSectionResizeMode(30, QHeaderView.ResizeMode.Stretch)  # note column
+
+        # Set row height
+        self.table.verticalHeader().setDefaultSectionSize(32)
 
     def _on_item_changed(self, item):
         """Handle item change"""
         # Track changed row
         self._changed_rows.add(item.row())
 
-        if not item.text().strip():
+        val = item.text().strip()
+
+        if not val:
             item.setBackground(QColor("#FFF9C4"))
         else:
             item.setBackground(QColor("white"))
 
+        col = item.column()
+
+        # Update text color for status column (col 0)
+        if col == 0:
+            status_colors = {
+                "Done": QColor("#2E7D32"), "Finish": QColor("#2E7D32"),
+                "Ongoing": QColor("#1565C0"), "Running": QColor("#1565C0"),
+                "Pending": QColor("#F57C00"), "Wait": QColor("#F57C00"),
+                "Stop": QColor("#C62828"), "Cancel": QColor("#9E9E9E"),
+                "Not Start": QColor("#757575")
+            }
+            if val in status_colors:
+                item.setForeground(status_colors[val])
+            else:
+                item.setForeground(QColor("#212121"))
+
+        # Update text color for result columns (15-19)
+        if col in self.RESULT_COLS:
+            result_colors = {
+                "Pass": QColor("#2E7D32"), "Fail": QColor("#C62828"),
+                "Waiver": QColor("#F57C00"), "-": QColor("#757575")
+            }
+            if val in result_colors:
+                item.setForeground(result_colors[val])
+            else:
+                item.setForeground(QColor("#212121"))
+
         # Auto-fill equipment name (equip_no is col 20, equip_name is col 21)
-        if item.column() == 20:
-            equip_no = item.text().strip()
+        if col == 20:
+            equip_no = val
             if equip_no:
                 try:
                     rows = self.db.fetch_all(
@@ -403,15 +511,15 @@ class EditTab(QWidget, LoadingMixin):
                         for c in range(self.model.columnCount())
                     ]
 
-                    record_id = row_data[0]
-                    if not record_id:
-                        continue
-
-                    # Column order: id, status, request_no, request_date, requester, factory, project,
+                    # Column order: status, id, request_no, request_date, requester, factory, project,
                     # phase, category, detail, qty, cos, hcross, xcross, func_test,
                     # cos_res, xhatch_res, xsection_res, func_res, final_res,
                     # equip_no, equip_name, test_condition, plan_start, plan_end, dri,
                     # actual_start, actual_end, logfile, log_link, note
+                    record_id = row_data[1]  # id is now col 1
+                    if not record_id:
+                        continue
+
                     cursor.execute("""
                         UPDATE requests SET
                             status=?, request_no=?, request_date=?, requester=?, factory=?,
@@ -423,7 +531,7 @@ class EditTab(QWidget, LoadingMixin):
                             actual_start=?, actual_end=?, logfile=?, log_link=?, note=?
                         WHERE id=?
                     """, (
-                        row_data[1], row_data[2], row_data[3], row_data[4], row_data[5],
+                        row_data[0], row_data[2], row_data[3], row_data[4], row_data[5],
                         row_data[6], row_data[7], row_data[8], row_data[9], row_data[10],
                         row_data[11], row_data[12], row_data[13], row_data[14],
                         row_data[15], row_data[16], row_data[17], row_data[18], row_data[19],
@@ -496,11 +604,11 @@ class EditTab(QWidget, LoadingMixin):
         if not selected_rows:
             return QMessageBox.warning(self, "Chọn bản ghi", "Vui lòng chọn bản ghi cần xóa!")
 
-        # Get request_no for confirmation
+        # Get request_no for confirmation (id is col 1, request_no is col 2)
         request_nos = []
         ids_to_delete = []
         for row in selected_rows:
-            record_id = self.model.item(row, 0).text() if self.model.item(row, 0) else ""
+            record_id = self.model.item(row, 1).text() if self.model.item(row, 1) else ""
             request_no = self.model.item(row, 2).text() if self.model.item(row, 2) else ""
             if record_id:
                 ids_to_delete.append(record_id)

@@ -76,7 +76,7 @@ class FrozenTableView(QTableView):
     def updateFrozenTableGeometry(self):
         """Update frozen table position and size"""
         w = sum([
-            self.columnWidth(i)
+            self.frozen.columnWidth(i)
             for i in range(self.frozen_col_count)
             if not self.frozen.isColumnHidden(i)
         ])
