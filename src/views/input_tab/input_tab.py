@@ -1,19 +1,19 @@
 """
 kRel - Input Tab (Refactored)
-Tab nhập liệu - đã tách thành modules nhỏ để dễ bảo trì
+Tab nhập liệu với giao diện đẹp - Material Design
 """
 import os
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QScrollArea,
+    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QLabel, QLineEdit, QComboBox, QDateTimeEdit, QPushButton,
-    QFileDialog, QMessageBox, QStyle
+    QFileDialog, QMessageBox, QGridLayout
 )
 from PyQt6.QtCore import Qt, QDateTime, QDate
 
 from src.config import TEST_PAIRS
-from src.styles import INPUT_TAB_STYLE, BTN_STYLE_GREEN_SOLID
+from src.styles import INPUT_TAB_STYLE
 from src.services.database import get_db
 from src.services.lookup_service import get_lookup_service
 from src.services.request_service import get_request_service
@@ -30,58 +30,74 @@ logger = get_logger("input_tab")
 
 
 class InputTab(QWidget):
-    """Tab nhập liệu - refactored để gọn và dễ bảo trì"""
+    """Tab nhập liệu với giao diện Material Design đẹp"""
+
+    # GroupBox styles
+    SCHEDULE_GROUP_STYLE = """
+        QGroupBox {
+            font-weight: 600; font-size: 12px; color: #E65100;
+            border: 1px solid #FFE0B2; border-radius: 6px;
+            margin-top: 12px; padding: 8px 8px 6px 8px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #FFFAF5, stop:1 #FFF8E1);
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin; left: 12px; padding: 0 6px;
+            background-color: #FFF3E0; border-radius: 3px;
+        }
+    """
+
+    NOTE_GROUP_STYLE = """
+        QGroupBox {
+            font-weight: 600; font-size: 12px; color: #7B1FA2;
+            border: 1px solid #E1BEE7; border-radius: 6px;
+            margin-top: 12px; padding: 8px 8px 6px 8px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #FDF5FF, stop:1 #F3E5F5);
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin; left: 12px; padding: 0 6px;
+            background-color: #F3E5F5; border-radius: 3px;
+        }
+    """
 
     def __init__(self, log_path: str, user_info: dict, parent=None):
         super().__init__(parent)
         self.log_path = log_path
         self.user_info = user_info
-        
+
         # Controllers
         self.controller = RequestController(log_path)
         self.csv_handler = CsvHandler()
-        
+
         # Services
         self.lookup_service = get_lookup_service()
         self.request_service = get_request_service()
-        
+
         os.makedirs(self.log_path, exist_ok=True)
-        
+
         self.setStyleSheet(INPUT_TAB_STYLE)
         self._setup_ui()
         self._setup_validation()
         self._connect_events()
-        
+
         # Initialize
         self._update_request_code(QDate.currentDate())
         self._load_recent_requests()
 
     def _setup_ui(self):
-        """Setup giao diện chính"""
+        """Setup giao diện chính với layout đẹp"""
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(8, 8, 8, 8)
-        main_layout.setSpacing(8)
-        
-        # Scroll area cho form
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(8)
-        
-        # Form section
+        main_layout.setContentsMargins(12, 8, 12, 8)
+        main_layout.setSpacing(6)
+
+        # Form section với GroupBox đẹp
         self.form_builder = FormBuilder(self)
-        self.widgets, self.validated_fields = self.form_builder.build_input_grid(content_layout)
-        
+        self.widgets, self.validated_fields = self.form_builder.build_input_grid(main_layout)
+
         # Bottom section (schedule, log, note, save button)
-        self._setup_bottom_section(content_layout)
-        
-        scroll.setWidget(content)
-        main_layout.addWidget(scroll, stretch=1)
-        
+        self._setup_bottom_section(main_layout)
+
         # Table section
         self.table_section = TableSection(self)
         self.table_section.build_toolbar(
@@ -93,15 +109,15 @@ class InputTab(QWidget):
             on_export=self._export_csv
         )
         self.table_section.build_table(main_layout)
-        
+
         # Alias for compatibility
         self.table = self.table_section.table
         self.cb_recent_filter = self.table_section.cb_filter
 
     def _setup_bottom_section(self, parent_layout):
-        """Setup phần dưới: lịch trình, log, note, nút lưu"""
+        """Setup phần dưới: lịch trình, log, note, nút lưu - giao diện đẹp"""
         bot_layout = QHBoxLayout()
-        bot_layout.setSpacing(12)
+        bot_layout.setSpacing(10)
 
         # Schedule group
         self._setup_schedule_group(bot_layout)
@@ -115,13 +131,13 @@ class InputTab(QWidget):
         parent_layout.addLayout(bot_layout)
 
     def _setup_schedule_group(self, parent_layout):
-        """Setup nhóm lịch trình"""
-        grp = QGroupBox("📅 Lịch Trình")
-        grp.setStyleSheet("QGroupBox { font-weight: bold; color: #1565C0; }")
+        """Setup nhóm lịch trình với style đẹp"""
+        grp = QGroupBox("📅 Lịch Trình Test")
+        grp.setStyleSheet(self.SCHEDULE_GROUP_STYLE)
 
-        from PyQt6.QtWidgets import QGridLayout
         grid = QGridLayout(grp)
-        grid.setSpacing(4)
+        grid.setSpacing(6)
+        grid.setContentsMargins(10, 6, 10, 6)
 
         fields = [
             ("Vào KH:", "plan_start", 0), ("Ra KH:", "plan_end", 1),
@@ -130,74 +146,129 @@ class InputTab(QWidget):
 
         for label, key, col in fields:
             lbl = QLabel(label)
-            lbl.setStyleSheet("font-weight: 500; color: #424242;")
+            lbl.setStyleSheet("font-weight: 500; color: #424242; font-size: 11px;")
             grid.addWidget(lbl, 0, col * 2)
 
             dt = QDateTimeEdit()
             dt.setCalendarPopup(True)
             dt.setDisplayFormat("MM-dd HH:mm")
             dt.setDateTime(QDateTime.currentDateTime())
+            dt.setStyleSheet("""
+                QDateTimeEdit {
+                    border: 1px solid #FFE0B2; border-radius: 4px;
+                    padding: 4px 6px; background-color: #FFFFFF;
+                    font-size: 11px; min-height: 24px;
+                }
+                QDateTimeEdit:hover { border-color: #FFB74D; }
+                QDateTimeEdit:focus { border: 1.5px solid #FF9800; }
+            """)
             grid.addWidget(dt, 0, col * 2 + 1)
             self.widgets[key] = dt
 
         parent_layout.addWidget(grp, stretch=3)
 
     def _setup_note_group(self, parent_layout):
-        """Setup nhóm ghi chú và log"""
+        """Setup nhóm ghi chú và log với style đẹp"""
         grp = QGroupBox("📝 Thông Tin Thêm")
-        grp.setStyleSheet("QGroupBox { font-weight: bold; color: #1565C0; }")
+        grp.setStyleSheet(self.NOTE_GROUP_STYLE)
 
-        from PyQt6.QtWidgets import QGridLayout
         grid = QGridLayout(grp)
-        grid.setSpacing(4)
+        grid.setSpacing(6)
+        grid.setContentsMargins(10, 6, 10, 6)
 
         # Log file
-        grid.addWidget(QLabel("Log:"), 0, 0)
-        log_layout = QHBoxLayout()
+        lbl_log = QLabel("Log:")
+        lbl_log.setStyleSheet("font-weight: 500; color: #424242; font-size: 11px;")
+        grid.addWidget(lbl_log, 0, 0)
 
-        self.log_label = QLabel("...")
-        self.log_label.setStyleSheet(
-            "background-color: #ECEFF1; padding: 4px 8px; border-radius: 4px;"
-        )
+        log_layout = QHBoxLayout()
+        log_layout.setSpacing(4)
+
+        self.log_label = QLabel("Chưa chọn file...")
+        self.log_label.setStyleSheet("""
+            background-color: #F3E5F5; padding: 4px 8px; border-radius: 4px;
+            color: #7B1FA2; font-size: 11px;
+        """)
         log_layout.addWidget(self.log_label, stretch=1)
 
         btn_log = QPushButton("📂")
-        btn_log.setFixedWidth(32)
+        btn_log.setFixedSize(28, 24)
+        btn_log.setStyleSheet("""
+            QPushButton {
+                background-color: #E1BEE7; border: none; border-radius: 4px;
+                font-size: 12px;
+            }
+            QPushButton:hover { background-color: #CE93D8; }
+        """)
+        btn_log.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_log.clicked.connect(self._pick_log_file)
         log_layout.addWidget(btn_log)
 
         grid.addLayout(log_layout, 0, 1)
 
         # Note
-        grid.addWidget(QLabel("Ghi chú:"), 1, 0)
+        lbl_note = QLabel("Ghi chú:")
+        lbl_note.setStyleSheet("font-weight: 500; color: #424242; font-size: 11px;")
+        grid.addWidget(lbl_note, 1, 0)
+
         self.widgets["note"] = QLineEdit()
         self.widgets["note"].setPlaceholderText("Nhập ghi chú...")
+        self.widgets["note"].setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #E1BEE7; border-radius: 4px;
+                padding: 4px 8px; background-color: #FFFFFF;
+                font-size: 11px; min-height: 24px;
+            }
+            QLineEdit:hover { border-color: #CE93D8; }
+            QLineEdit:focus { border: 1.5px solid #9C27B0; }
+        """)
         grid.addWidget(self.widgets["note"], 1, 1)
 
         # Hidden log_link
         self.widgets["log_link"] = QLineEdit()
 
         # DRI
-        grid.addWidget(QLabel("DRI:"), 2, 0)
+        lbl_dri = QLabel("DRI:")
+        lbl_dri.setStyleSheet("font-weight: 500; color: #424242; font-size: 11px;")
+        grid.addWidget(lbl_dri, 2, 0)
+
         dri = QLineEdit(self.user_info.get('name', ''))
         dri.setReadOnly(True)
-        dri.setStyleSheet("background-color: #ECEFF1; color: #607D8B;")
+        dri.setStyleSheet("""
+            background-color: #F3E5F5; color: #7B1FA2;
+            border: 1px solid #E1BEE7; border-radius: 4px;
+            padding: 4px 8px; font-size: 11px; min-height: 24px;
+        """)
         grid.addWidget(dri, 2, 1)
 
         parent_layout.addWidget(grp, stretch=4)
 
     def _setup_save_button(self, parent_layout):
-        """Setup nút lưu"""
+        """Setup nút lưu với style đẹp"""
         from PyQt6.QtWidgets import QVBoxLayout
         btn_layout = QVBoxLayout()
-        btn_layout.setContentsMargins(0, 16, 0, 0)
+        btn_layout.setContentsMargins(0, 20, 0, 0)
 
-        btn = QPushButton("  💾 LƯU DỮ LIỆU")
-        btn.setFixedHeight(50)
-        btn.setMinimumWidth(120)
-        btn.setStyleSheet(BTN_STYLE_GREEN_SOLID)
+        btn = QPushButton("💾 LƯU DỮ LIỆU")
+        btn.setFixedHeight(60)
+        btn.setMinimumWidth(130)
+        btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #43A047, stop:1 #2E7D32);
+                color: white; border: none; border-radius: 8px;
+                font-size: 14px; font-weight: bold;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #4CAF50, stop:1 #388E3C);
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #388E3C, stop:1 #1B5E20);
+            }
+        """)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
         btn.clicked.connect(self._save)
         btn_layout.addWidget(btn)
         btn_layout.addStretch()

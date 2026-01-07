@@ -1,12 +1,12 @@
 """
 kRel - Input Tab Form Section
-Phần form nhập liệu - tách từ input_tab.py
+Phần form nhập liệu với giao diện đẹp
 """
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
-    QLabel, QLineEdit, QComboBox, QDateTimeEdit, QPushButton, QFrame
+    QWidget, QGridLayout, QGroupBox,
+    QLabel, QLineEdit, QComboBox, QDateTimeEdit
 )
-from PyQt6.QtCore import Qt, QDateTime
+from PyQt6.QtCore import QDateTime
 
 from src.config import TEST_PAIRS, FINAL_RESULTS
 from src.styles import RESULT_FIELD_STYLE
@@ -15,75 +15,109 @@ from src.widgets.validated_field import ValidatedField
 
 
 class FormBuilder:
-    """Helper class để tạo form fields"""
-    
-    # Field definitions
-    TOP_FIELDS = [
+    """Helper class để tạo form fields với giao diện đẹp"""
+
+    # Field definitions - chia thành 2 hàng
+    ROW1_FIELDS = [
         ("Mã Yêu cầu", "request_no"), ("Ngày yêu cầu", "request_date"),
         ("Người yêu cầu", "requester"), ("Nhà máy", "factory"),
         ("Dự án", "project"), ("Giai đoạn", "phase"),
+    ]
+
+    ROW2_FIELDS = [
         ("Hạng mục", "category"), ("Mã Thiết bị", "equip_no"),
         ("Tên Thiết bị", "equip_name"), ("Số lượng", "qty"),
-        ("Điều kiện test", "test_condition")
+        ("Điều kiện test", "test_condition"), ("Trạng thái", "status"),
     ]
-    
-    BOTTOM_FIELDS = [("KQ Cuối", "final_res"), ("Trạng thái", "status")]
+
+    # For compatibility
+    TOP_FIELDS = ROW1_FIELDS + ROW2_FIELDS
+    BOTTOM_FIELDS = [("KQ Cuối", "final_res")]
+
     COMBO_FIELDS = ["factory", "project", "phase", "category", "equip_no", "status"]
     REQUIRED_FIELDS = ["request_no", "requester", "factory", "project"]
-    
+
+    # GroupBox styles
+    INFO_GROUP_STYLE = """
+        QGroupBox {
+            font-weight: 600; font-size: 12px; color: #1565C0;
+            border: 1px solid #BBDEFB; border-radius: 6px;
+            margin-top: 12px; padding: 8px 8px 6px 8px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #F8FBFF, stop:1 #F0F7FF);
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin; left: 12px; padding: 0 6px;
+            background-color: #E3F2FD; border-radius: 3px;
+        }
+    """
+
+    TEST_GROUP_STYLE = """
+        QGroupBox {
+            font-weight: 600; font-size: 12px; color: #2E7D32;
+            border: 1px solid #C8E6C9; border-radius: 6px;
+            margin-top: 12px; padding: 8px 8px 6px 8px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #F8FFF8, stop:1 #F1F8E9);
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin; left: 12px; padding: 0 6px;
+            background-color: #E8F5E9; border-radius: 3px;
+        }
+    """
+
     def __init__(self, parent: QWidget):
         self.parent = parent
         self.widgets = {}
         self.validated_fields = {}
         self.lookup_service = get_lookup_service()
-    
+
     def build_input_grid(self, parent_layout):
-        """Tạo grid nhập liệu chính"""
-        grid = QGridLayout()
-        grid.setSpacing(4)
-        grid.setVerticalSpacing(3)
+        """Tạo form nhập liệu với GroupBox đẹp"""
+        # ===== THÔNG TIN YÊU CẦU =====
+        info_group = QGroupBox("📋 Thông Tin Yêu Cầu")
+        info_group.setStyleSheet(self.INFO_GROUP_STYLE)
+        info_layout = QGridLayout(info_group)
+        info_layout.setSpacing(6)
+        info_layout.setContentsMargins(10, 8, 10, 8)
 
-        MAX_COLS = 4
-        row, col = 0, 0
+        # Row 1: 6 fields
+        for i, (label, field) in enumerate(self.ROW1_FIELDS):
+            self._create_field(info_layout, label, field, 0, i)
 
-        # Top fields
-        for label, field in self.TOP_FIELDS:
-            self._create_field(grid, label, field, row, col)
-            col += 1
-            if col >= MAX_COLS:
-                col, row = 0, row + 1
-
-        # Separator
-        if col > 0:
-            row += 1
-        self._add_separator(grid, row)
-        row += 1
-
-        # Test section header
-        self._add_section_header(grid, row, "📊 Kết Quả Test")
-        row += 1
-
-        # Test pairs - input row
-        for i, (inp_key, _, lbl_inp, _) in enumerate(TEST_PAIRS):
-            self._create_field(grid, lbl_inp, inp_key, row, i)
-        row += 1
-
-        # Test pairs - result row
-        for i, (_, res_key, _, lbl_res) in enumerate(TEST_PAIRS):
-            self._create_field(grid, lbl_res, res_key, row, i, is_result=True)
-        row += 1
-
-        # Bottom fields
-        col = 0
-        for label, field in self.BOTTOM_FIELDS:
-            self._create_field(grid, label, field, row, col)
-            col += 1
+        # Row 2: 6 fields
+        for i, (label, field) in enumerate(self.ROW2_FIELDS):
+            self._create_field(info_layout, label, field, 1, i)
 
         # Column stretches
-        for i in range(MAX_COLS):
-            grid.setColumnStretch(i * 2 + 1, 1)
+        for i in range(6):
+            info_layout.setColumnStretch(i * 2 + 1, 1)
 
-        parent_layout.addLayout(grid)
+        parent_layout.addWidget(info_group)
+
+        # ===== KẾT QUẢ TEST =====
+        test_group = QGroupBox("📊 Kết Quả Test")
+        test_group.setStyleSheet(self.TEST_GROUP_STYLE)
+        test_layout = QGridLayout(test_group)
+        test_layout.setSpacing(6)
+        test_layout.setContentsMargins(10, 8, 10, 8)
+
+        # Test pairs - input row (row 0)
+        for i, (inp_key, _, lbl_inp, _) in enumerate(TEST_PAIRS):
+            self._create_field(test_layout, lbl_inp, inp_key, 0, i)
+
+        # Test pairs - result row (row 1)
+        for i, (_, res_key, _, lbl_res) in enumerate(TEST_PAIRS):
+            self._create_field(test_layout, lbl_res, res_key, 1, i, is_result=True)
+
+        # Final result (row 2, first column)
+        self._create_field(test_layout, "KQ Cuối", "final_res", 2, 0)
+
+        # Column stretches
+        for i in range(len(TEST_PAIRS)):
+            test_layout.setColumnStretch(i * 2 + 1, 1)
+
+        parent_layout.addWidget(test_group)
 
         # Auto-fill for test results
         for inp_key, res_key, _, _ in TEST_PAIRS:
@@ -133,7 +167,7 @@ class FormBuilder:
         """Load items cho combo box"""
         combo.clear()
         combo.addItem("")
-        
+
         try:
             if field_name == "equip_no":
                 items = self.lookup_service.get_equipment_list()
@@ -144,40 +178,27 @@ class FormBuilder:
                 }
                 table = table_map.get(field_name)
                 items = self.lookup_service.get_lookup_values(table) if table else []
-            
+
             for item in items:
                 if item:
                     combo.addItem(item)
         except Exception:
             pass
-    
-    def _add_separator(self, grid, row):
-        """Thêm đường kẻ phân cách"""
-        sep = QFrame()
-        sep.setStyleSheet("background-color: #1565C0; border-radius: 1px;")
-        sep.setFixedHeight(2)
-        grid.addWidget(sep, row, 0, 1, 8)
-    
-    def _add_section_header(self, grid, row, text):
-        """Thêm header cho section"""
-        label = QLabel(f"<b style='color: #1565C0; font-size: 12px;'>{text}</b>")
-        label.setStyleSheet("background-color: #E3F2FD; padding: 3px 8px; border-radius: 3px;")
-        grid.addWidget(label, row, 0, 1, 8)
-    
+
     def _setup_auto_result(self, src_key, dest_key):
         """Auto-fill kết quả test"""
         if src_key not in self.widgets or dest_key not in self.widgets:
             return
-        
+
         src = self.widgets[src_key]
         dest = self.widgets[dest_key]
-        
+
         def update(text):
             if text.strip():
                 dest.setText(f"xxF/{text.strip()}T")
             else:
                 dest.clear()
-        
+
         if isinstance(src, QLineEdit):
             src.textChanged.connect(update)
         elif isinstance(src, QComboBox):
