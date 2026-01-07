@@ -38,9 +38,8 @@ pyinstaller --noconfirm ^
     --onedir ^
     --windowed ^
     --name "kRel" ^
-    --icon "Ka.ico" ^
-    --add-data "Ka.ico;." ^
-    --add-data "Ka.png;." ^
+    --icon "assets/images/Ka.ico" ^
+    --add-data "assets;assets" ^
     --add-data "config.ini;." ^
     --add-data "csv;csv" ^
     --hidden-import "PyQt6.QtCore" ^

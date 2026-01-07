@@ -1,8 +1,16 @@
 """
 kRel - Authentication Service
 Handle user login, register, and session management
+
+Security Features:
+- Rate limiting for login attempts
+- Account lockout after failed attempts
+- Strong password policy validation
+- Secure session management with timeout
 """
 import os
+import time
+from collections import defaultdict
 from configparser import ConfigParser
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
@@ -16,16 +24,30 @@ logger = get_logger("auth")
 
 
 class AuthService:
-    """Authentication and session management service"""
-    
+    """
+    Authentication and session management service
+
+    Security Features:
+    - Rate limiting: Max 5 login attempts per 15 minutes
+    - Account lockout: 15 minutes after 5 failed attempts
+    - Session timeout: 30 minutes of inactivity
+    - Strong password policy enforcement
+    """
+
     _instance: Optional["AuthService"] = None
-    
+
+    # Security settings
+    MAX_LOGIN_ATTEMPTS = 5
+    LOCKOUT_DURATION = timedelta(minutes=15)
+    RATE_LIMIT_WINDOW = 900  # 15 minutes in seconds
+    MIN_PASSWORD_LENGTH = 6
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self):
         if self._initialized:
             return
@@ -34,15 +56,65 @@ class AuthService:
         self._last_activity: Optional[datetime] = None
         self._session_timeout = timedelta(minutes=30)
         self._config_file = "config.ini"
+
+        # Rate limiting and lockout tracking
+        self._login_attempts: Dict[str, list] = defaultdict(list)  # username -> [timestamps]
+        self._lockout_until: Dict[str, datetime] = {}  # username -> lockout_expiry
+
+    def _clean_old_attempts(self, username: str):
+        """Remove login attempts older than rate limit window"""
+        cutoff = time.time() - self.RATE_LIMIT_WINDOW
+        self._login_attempts[username] = [
+            t for t in self._login_attempts[username] if t > cutoff
+        ]
+
+    def _is_locked_out(self, username: str) -> bool:
+        """Check if account is currently locked out"""
+        if username in self._lockout_until:
+            if datetime.now() < self._lockout_until[username]:
+                return True
+            else:
+                # Lockout expired, remove it
+                del self._lockout_until[username]
+                self._login_attempts[username] = []
+        return False
+
+    def _record_failed_attempt(self, username: str):
+        """Record a failed login attempt and check for lockout"""
+        self._login_attempts[username].append(time.time())
+        self._clean_old_attempts(username)
+
+        if len(self._login_attempts[username]) >= self.MAX_LOGIN_ATTEMPTS:
+            self._lockout_until[username] = datetime.now() + self.LOCKOUT_DURATION
+            logger.warning(f"Account '{username}' locked out for {self.LOCKOUT_DURATION.total_seconds()/60} minutes")
+            log_audit("ACCOUNT_LOCKED", user=username, details=f"Too many failed attempts")
+
+    def _get_remaining_lockout_time(self, username: str) -> int:
+        """Get remaining lockout time in seconds"""
+        if username in self._lockout_until:
+            remaining = (self._lockout_until[username] - datetime.now()).total_seconds()
+            return max(0, int(remaining))
+        return 0
     
     def login(self, username: str, password: str) -> tuple[bool, Optional[User], str]:
         """
-        Authenticate user
+        Authenticate user with rate limiting and lockout protection.
+
         Returns: (success, user, message)
         """
         if not username or not password:
-            logger.debug(f"Login attempt with empty credentials")
+            logger.debug("Login attempt with empty credentials")
             return False, None, "Vui lòng nhập đầy đủ thông tin!"
+
+        username_lower = username.lower().strip()
+
+        # Check for account lockout
+        if self._is_locked_out(username_lower):
+            remaining = self._get_remaining_lockout_time(username_lower)
+            minutes = remaining // 60
+            seconds = remaining % 60
+            logger.warning(f"Login blocked: account '{username}' is locked out")
+            return False, None, f"Tài khoản tạm khóa. Thử lại sau {minutes}:{seconds:02d}"
 
         try:
             db = get_db()
@@ -52,6 +124,7 @@ class AuthService:
             )
 
             if not row:
+                self._record_failed_attempt(username_lower)
                 logger.warning(f"Login failed: user '{username}' not found")
                 log_audit("LOGIN_FAILED", user=username, details="User not found")
                 return False, None, "Tài khoản không tồn tại!"
@@ -59,11 +132,20 @@ class AuthService:
             user = User.from_db_row(row)
 
             if not User.verify_password(password, user.password):
-                logger.warning(f"Login failed: wrong password for '{username}'")
+                self._record_failed_attempt(username_lower)
+                attempts_left = self.MAX_LOGIN_ATTEMPTS - len(self._login_attempts.get(username_lower, []))
+                logger.warning(f"Login failed: wrong password for '{username}' ({attempts_left} attempts left)")
                 log_audit("LOGIN_FAILED", user=username, details="Wrong password")
-                return False, None, "Sai mật khẩu!"
 
-            # Login successful
+                if attempts_left > 0:
+                    return False, None, f"Sai mật khẩu! Còn {attempts_left} lần thử."
+                else:
+                    return False, None, "Tài khoản đã bị tạm khóa do đăng nhập sai quá nhiều lần!"
+
+            # Login successful - clear failed attempts
+            if username_lower in self._login_attempts:
+                del self._login_attempts[username_lower]
+
             self._current_user = user
             self._last_activity = datetime.now()
 
@@ -83,18 +165,47 @@ class AuthService:
         log_audit("LOGOUT", user=username)
         self._current_user = None
         self._last_activity = None
-    
+
+    @staticmethod
+    def validate_password(password: str) -> tuple[bool, str]:
+        """
+        Validate password strength.
+
+        Requirements:
+        - Minimum 6 characters
+        - At least one letter
+        - At least one digit
+
+        Returns: (is_valid, error_message)
+        """
+        if len(password) < 6:
+            return False, "Mật khẩu phải có ít nhất 6 ký tự!"
+
+        has_letter = any(c.isalpha() for c in password)
+        has_digit = any(c.isdigit() for c in password)
+
+        if not has_letter:
+            return False, "Mật khẩu phải chứa ít nhất một chữ cái!"
+
+        if not has_digit:
+            return False, "Mật khẩu phải chứa ít nhất một chữ số!"
+
+        return True, ""
+
     def register(self, username: str, password: str, fullname: str = "",
                  email: str = "", role: str = "Operator") -> tuple[bool, str]:
         """
-        Register new user
+        Register new user with password policy enforcement.
+
         Returns: (success, message)
         """
         if not username or not password:
             return False, "Vui lòng nhập đầy đủ thông tin!"
 
-        if len(password) < 1:
-            return False, "Mật khẩu quá ngắn!"
+        # Validate password strength
+        is_valid, error_msg = self.validate_password(password)
+        if not is_valid:
+            return False, error_msg
 
         try:
             db = get_db()

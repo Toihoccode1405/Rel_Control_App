@@ -1,13 +1,19 @@
 """
 kRel - Main Window
 Main application window with tabs
+
+Performance Features:
+- Lazy loading: Tabs are only initialized when first accessed
+- Reduced startup time by deferring heavy tab initialization
 """
 import os
+import logging
 from configparser import ConfigParser
+from typing import Dict, Optional, Callable
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QTabWidget, QToolBar, QLabel,
-    QPushButton, QSizePolicy, QMessageBox
+    QPushButton, QSizePolicy, QMessageBox, QVBoxLayout
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
@@ -15,19 +21,71 @@ from PyQt6.QtGui import QIcon
 from src.config import APP_TITLE, DEFAULT_LOG_PATH, CONFIG_FILE
 from src.styles import BTN_STYLE_RED, TAB_STYLE, TOOLBAR_STYLE
 
+# Module logger
+logger = logging.getLogger("kRel.main_window")
+
+
+class LazyTabWidget(QWidget):
+    """
+    Placeholder widget for lazy-loaded tabs.
+
+    The actual tab content is only created when the tab is first selected.
+    """
+
+    def __init__(self, factory: Callable[[], QWidget], parent=None):
+        super().__init__(parent)
+        self._factory = factory
+        self._actual_widget: Optional[QWidget] = None
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+
+        # Show loading placeholder
+        self._placeholder = QLabel("Đang tải...")
+        self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._placeholder.setStyleSheet("font-size: 16px; color: #666;")
+        self._layout.addWidget(self._placeholder)
+
+    def ensure_loaded(self):
+        """Ensure the actual widget is loaded"""
+        if self._actual_widget is None:
+            logger.debug(f"Lazy loading tab: {self._factory}")
+
+            # Remove placeholder
+            self._placeholder.setParent(None)
+            self._placeholder.deleteLater()
+
+            # Create actual widget
+            self._actual_widget = self._factory()
+            self._layout.addWidget(self._actual_widget)
+
+            logger.debug("Tab loaded successfully")
+
+    @property
+    def is_loaded(self) -> bool:
+        """Check if the actual widget has been loaded"""
+        return self._actual_widget is not None
+
 
 class MainWindow(QMainWindow):
-    """Main application window"""
-    
+    """
+    Main application window with lazy-loaded tabs.
+
+    Features:
+    - Lazy loading: Only InputTab is loaded at startup
+    - Other tabs are loaded on first access
+    - Improved startup performance
+    """
+
     def __init__(self, user_info: dict):
         super().__init__()
         self.user_info = user_info
         self.is_logout = False
         self.log_path = DEFAULT_LOG_PATH
-        
+        self._lazy_tabs: Dict[int, LazyTabWidget] = {}
+
         self._load_config()
         self._setup_ui()
-    
+
     def _load_config(self):
         """Load configuration"""
         if os.path.exists(CONFIG_FILE):
@@ -101,30 +159,68 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(btn_logout)
     
     def _setup_tabs(self):
-        """Setup tab widget with all tabs"""
-        tabs = QTabWidget()
-        tabs.setStyleSheet(TAB_STYLE)
-        
+        """
+        Setup tab widget with lazy-loaded tabs.
+
+        Only InputTab is loaded immediately (most commonly used).
+        Other tabs are loaded on first access for faster startup.
+        """
+        self.tabs = QTabWidget()
+        self.tabs.setStyleSheet(TAB_STYLE)
+
         # Import tabs here to avoid circular imports
         from src.views.input_tab import InputTab
-        from src.views.edit_tab import EditTab
-        from src.views.report_tab import ReportTab
-        from src.views.settings_tab import SettingsTab
-        
-        # Add tabs
-        tabs.addTab(
+
+        # Tab 0: InputTab - Load immediately (primary tab)
+        self.tabs.addTab(
             InputTab(self.log_path, self.user_info),
             "NHẬP LIỆU"
         )
-        tabs.addTab(EditTab(), "DỮ LIỆU")
-        tabs.addTab(ReportTab(), "BÁO CÁO")
-        tabs.addTab(
-            SettingsTab(self.user_info.get("role", "Operator")),
-            "CÀI ĐẶT"
-        )
-        
-        self.setCentralWidget(tabs)
-    
+
+        # Tab 1: EditTab - Lazy load
+        edit_tab = LazyTabWidget(self._create_edit_tab)
+        self._lazy_tabs[1] = edit_tab
+        self.tabs.addTab(edit_tab, "DỮ LIỆU")
+
+        # Tab 2: ReportTab - Lazy load
+        report_tab = LazyTabWidget(self._create_report_tab)
+        self._lazy_tabs[2] = report_tab
+        self.tabs.addTab(report_tab, "BÁO CÁO")
+
+        # Tab 3: SettingsTab - Lazy load
+        settings_tab = LazyTabWidget(self._create_settings_tab)
+        self._lazy_tabs[3] = settings_tab
+        self.tabs.addTab(settings_tab, "CÀI ĐẶT")
+
+        # Connect tab change signal for lazy loading
+        self.tabs.currentChanged.connect(self._on_tab_changed)
+
+        self.setCentralWidget(self.tabs)
+        logger.info("Main window tabs initialized with lazy loading")
+
+    def _create_edit_tab(self) -> QWidget:
+        """Factory method for EditTab"""
+        from src.views.edit_tab import EditTab
+        return EditTab()
+
+    def _create_report_tab(self) -> QWidget:
+        """Factory method for ReportTab"""
+        from src.views.report_tab import ReportTab
+        return ReportTab()
+
+    def _create_settings_tab(self) -> QWidget:
+        """Factory method for SettingsTab"""
+        from src.views.settings_tab import SettingsTab
+        return SettingsTab(self.user_info.get("role", "Operator"))
+
+    def _on_tab_changed(self, index: int):
+        """Handle tab change - trigger lazy loading if needed"""
+        if index in self._lazy_tabs:
+            lazy_tab = self._lazy_tabs[index]
+            if not lazy_tab.is_loaded:
+                logger.info(f"Loading tab at index {index}")
+                lazy_tab.ensure_loaded()
+
     def _logout(self):
         """Handle logout"""
         reply = QMessageBox.question(

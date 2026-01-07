@@ -126,7 +126,12 @@ REQUEST_DB_FIELDS = [
 DEFAULT_LOG_PATH = "Logfile"
 CONFIG_FILE = "config.ini"
 KEY_FILE = ".dbkey"
-ICON_FILE = "Ka.ico"
+
+# ========== ASSETS PATHS ==========
+ASSETS_DIR = "assets"
+IMAGES_DIR = "assets/images"
+ICON_FILE = "assets/images/Ka.ico"
+LOGO_FILE = "assets/images/Ka.png"
 
 # ========== INPUT FORM FIELDS ==========
 # (key, label, type, readonly)

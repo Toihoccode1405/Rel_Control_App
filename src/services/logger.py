@@ -1,6 +1,6 @@
 """
 kRel - Logging Service
-Centralized logging with file rotation and audit trail
+Centralized logging with daily file rotation and audit trail
 """
 import os
 import logging
@@ -16,6 +16,26 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # Singleton instance
 _logger_service: Optional["LoggerService"] = None
+
+
+def _daily_log_namer(default_name: str) -> str:
+    """
+    Custom namer for daily log rotation.
+    Chuyển từ 'kRel.log.2026-01-07' thành 'kRel_2026-01-07.log'
+    """
+    # default_name = "path/to/kRel.log.2026-01-07"
+    base_name = default_name.rsplit(".", 1)[0]  # "path/to/kRel.log"
+    date_part = default_name.rsplit(".", 1)[1]  # "2026-01-07"
+
+    # Tách thêm để lấy tên file gốc
+    dir_name = os.path.dirname(base_name)
+    file_name = os.path.basename(base_name)  # "kRel.log"
+    name_without_ext = file_name.rsplit(".", 1)[0]  # "kRel"
+    ext = file_name.rsplit(".", 1)[1] if "." in file_name else "log"  # "log"
+
+    # Tạo tên mới: kRel_2026-01-07.log
+    new_name = f"{name_without_ext}_{date_part}.{ext}"
+    return os.path.join(dir_name, new_name)
 
 
 class LoggerService:
@@ -45,15 +65,17 @@ class LoggerService:
         return log_path
     
     def _setup_logging(self):
-        """Setup logging configuration"""
+        """Setup logging configuration with daily rotation"""
         # Root logger
         root_logger = logging.getLogger("kRel")
         root_logger.setLevel(logging.DEBUG)
-        
+
         # Clear existing handlers
         root_logger.handlers.clear()
-        
+
         # File handler - rotates daily, keeps 30 days
+        # Tên file hiện tại: kRel.log (ngày hôm nay)
+        # Tên file rotate: kRel_2026-01-06.log (ngày hôm trước)
         log_file = os.path.join(self._log_dir, "kRel.log")
         file_handler = TimedRotatingFileHandler(
             log_file,
@@ -65,23 +87,26 @@ class LoggerService:
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
         file_handler.suffix = "%Y-%m-%d"
-        
+        file_handler.namer = _daily_log_namer  # Custom namer cho tên file đẹp hơn
+
         # Audit log - separate file for important actions
+        # Giữ 90 ngày cho audit trail
         audit_file = os.path.join(self._log_dir, "audit.log")
         audit_handler = TimedRotatingFileHandler(
             audit_file,
             when="midnight",
             interval=1,
-            backupCount=90,  # Keep 90 days for audit
+            backupCount=90,
             encoding="utf-8"
         )
         audit_handler.setLevel(logging.INFO)
         audit_handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
         audit_handler.suffix = "%Y-%m-%d"
-        
+        audit_handler.namer = _daily_log_namer  # Custom namer cho tên file đẹp hơn
+
         # Add handlers
         root_logger.addHandler(file_handler)
-        
+
         # Audit logger
         audit_logger = logging.getLogger("kRel.audit")
         audit_logger.addHandler(audit_handler)
