@@ -8,11 +8,15 @@ from PyQt6.QtCore import Qt
 
 class FrozenTableView(QTableView):
     """Table view with frozen left columns"""
-    
+
     def __init__(self, model, frozen_col_count=4):
         super().__init__()
         self.setModel(model)
         self.frozen_col_count = frozen_col_count
+
+        # Enable multi-row selection
+        self.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QTableView.SelectionMode.ExtendedSelection)
 
         # Create frozen view
         self.frozen = QTableView(self)

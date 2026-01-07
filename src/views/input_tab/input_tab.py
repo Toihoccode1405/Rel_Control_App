@@ -92,7 +92,9 @@ class InputTab(QWidget):
             on_search=self._on_search,
             on_template=self._download_template,
             on_import=self._import_csv,
-            on_export=self._export_csv
+            on_export=self._export_csv,
+            on_edit=self._edit_selected,
+            on_delete=self._delete_selected
         )
         self.table_section.build_table(main_layout)
 
@@ -471,4 +473,56 @@ class InputTab(QWidget):
             QMessageBox.information(self, "Thành công", f"Đã xuất {count} dòng!")
         else:
             QMessageBox.critical(self, "Lỗi", msg)
+
+    def _edit_selected(self):
+        """Mở tab Edit và filter theo bản ghi đã chọn"""
+        selected = self.table_section.get_selected_request_nos()
+        if not selected:
+            return QMessageBox.warning(self, "Chọn bản ghi", "Vui lòng chọn bản ghi cần sửa!")
+
+        # Emit signal để main_window chuyển sang tab Edit
+        from src.services.data_event_bus import get_event_bus
+        get_event_bus().emit_edit_request(selected[0])
+
+    def _delete_selected(self):
+        """Xóa các bản ghi đã chọn"""
+        selected = self.table_section.get_selected_request_nos()
+        if not selected:
+            return QMessageBox.warning(self, "Chọn bản ghi", "Vui lòng chọn bản ghi cần xóa!")
+
+        count = len(selected)
+        confirm = QMessageBox.question(
+            self, "Xác nhận xóa",
+            f"Bạn có chắc muốn xóa {count} bản ghi?\n\n" + "\n".join(selected[:10]) +
+            ("\n..." if count > 10 else ""),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
+        deleted = 0
+        errors = []
+        db = self.controller.db
+
+        for request_no in selected:
+            try:
+                with db.get_cursor() as cursor:
+                    cursor.execute("DELETE FROM requests WHERE request_no = ?", (request_no,))
+                deleted += 1
+            except Exception as e:
+                errors.append(f"{request_no}: {str(e)}")
+
+        if deleted > 0:
+            from src.services.data_event_bus import get_event_bus
+            get_event_bus().emit_request_updated("batch_delete")
+            self._load_recent_requests()
+
+        if errors:
+            QMessageBox.warning(
+                self, "Có lỗi",
+                f"Đã xóa {deleted}/{count} bản ghi.\nLỗi:\n" + "\n".join(errors[:5])
+            )
+        else:
+            QMessageBox.information(self, "Thành công", f"Đã xóa {deleted} bản ghi!")
 

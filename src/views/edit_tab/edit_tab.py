@@ -20,7 +20,7 @@ from src.services.database import get_db
 from src.services.logger import get_logger, log_audit
 from src.services.data_event_bus import get_event_bus
 from src.styles import (
-    BTN_STYLE_BLUE, BTN_STYLE_GREEN_SOLID, BTN_STYLE_ORANGE_SOLID,
+    BTN_STYLE_BLUE, BTN_STYLE_GREEN_SOLID, BTN_STYLE_ORANGE_SOLID, BTN_STYLE_RED,
     TABLE_STYLE, TOOLBAR_BLUE_STYLE, FILTER_BLUE_STYLE
 )
 from src.widgets.loading_overlay import LoadingMixin
@@ -32,14 +32,15 @@ from src.views.edit_tab.frozen_table import FrozenTableView
 
 logger = get_logger("edit_tab")
 
-# Database columns
+# Database columns - must match actual DB order
 DB_SELECT_COLS = [
-    "id", "request_no", "request_date", "requester", "factory", "project",
-    "phase", "category", "qty", "cos", "cos_res", "hcross",
-    "xhatch_res", "xcross", "xsection_res", "func_test", "func_res",
-    "final_res", "equip_no", "equip_name", "test_condition", "plan_start",
-    "plan_end", "status", "dri", "actual_start", "actual_end", "logfile",
-    "log_link", "note"
+    "id", "status", "request_no", "request_date", "requester", "factory", "project",
+    "phase", "category", "detail", "qty",
+    "cos", "hcross", "xcross", "func_test",
+    "cos_res", "xhatch_res", "xsection_res", "func_res", "final_res",
+    "equip_no", "equip_name", "test_condition",
+    "plan_start", "plan_end", "dri",
+    "actual_start", "actual_end", "logfile", "log_link", "note"
 ]
 
 DEFAULT_COLOR = "#FFFFFF"
@@ -48,18 +49,24 @@ DEFAULT_COLOR = "#FFFFFF"
 class EditTab(QWidget, LoadingMixin):
     """Tab chỉnh sửa dữ liệu với CRUD support"""
 
+    # Column index to lookup table mapping
     COL_MAP = {
-        4: "factory", 5: "project", 6: "phase",
-        7: "category", 18: "equipment", 23: "status"
+        1: "status", 5: "factory", 6: "project", 7: "phase",
+        8: "category", 20: "equipment"
     }
-    DATE_COLS = [2, 21, 22, 25, 26]
+
+    # Columns that have result dropdown (-, Pass, Fail, Waiver)
+    RESULT_COLS = [15, 16, 17, 18, 19]  # cos_res, xhatch_res, xsection_res, func_res, final_res
+
+    DATE_COLS = [3, 23, 24, 26, 27]
 
     HEADERS = [
-        "ID", "Mã YC", "Ngày YC", "Người YC", "Nhà máy", "Dự án", "Giai đoạn",
-        "Hạng mục", "SL", "Ngoại quan", "KQ Ngoại Quan",
-        "Cross hatch", "KQ X-Hatch", "Cross section", "KQ X-Section",
-        "Tính năng", "KQ Tính Năng", "KQ Cuối", "Mã TB", "Tên TB",
-        "Điều kiện", "Vào KH", "Ra KH", "Trạng thái", "DRI",
+        "ID", "Trạng thái", "Mã YC", "Ngày YC", "Người YC", "Nhà máy", "Dự án", "Giai đoạn",
+        "Hạng mục", "Chi tiết", "SL",
+        "Ngoại quan", "Cross hatch", "Cross section", "Tính năng",
+        "KQ Ngoại Quan", "KQ X-Hatch", "KQ X-Section", "KQ Tính Năng", "KQ Cuối",
+        "Mã TB", "Tên TB", "Điều kiện",
+        "Vào KH", "Ra KH", "DRI",
         "Vào TT", "Ra TT", "Logfile", "Link", "Ghi chú"
     ]
 
@@ -69,7 +76,8 @@ class EditTab(QWidget, LoadingMixin):
         self.table = None
         self.model = None
         self.log_path = self._load_log_path()
-        
+        self._changed_rows = set()  # Track changed rows
+
         self._setup_ui()
         self._connect_events()
         self._refresh()
@@ -146,10 +154,18 @@ class EditTab(QWidget, LoadingMixin):
         btn_refresh.setStyleSheet(BTN_STYLE_BLUE)
         layout.addWidget(btn_refresh)
 
+        # Delete button
+        btn_delete = QPushButton("🗑️ Xóa")
+        btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_delete.clicked.connect(self._delete_selected)
+        btn_delete.setStyleSheet(BTN_STYLE_RED)
+        btn_delete.setToolTip("Xóa các bản ghi đã chọn")
+        layout.addWidget(btn_delete)
+
         layout.addStretch()
 
         # Save button
-        btn_save = QPushButton("💾 Lưu tất cả")
+        btn_save = QPushButton("💾 Lưu thay đổi")
         btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_save.clicked.connect(self._save)
         btn_save.setStyleSheet(BTN_STYLE_GREEN_SOLID)
@@ -227,7 +243,10 @@ class EditTab(QWidget, LoadingMixin):
                 rows = self.db.fetch_all(f"SELECT name FROM {table} ORDER BY name")
             data[col] = [""] + [r[0] for r in rows if r[0]]
 
-        data[18] = ["-", "Pass", "Fail", "Waiver"]
+        # Add result dropdown for result columns
+        result_options = ["", "-", "Pass", "Fail", "Waiver"]
+        for col in self.RESULT_COLS:
+            data[col] = result_options
 
         # Build query with filters
         conditions, params = [], []
@@ -258,7 +277,8 @@ class EditTab(QWidget, LoadingMixin):
         lemon_bg = QColor("#FFF9C4")
 
         for _, row in df.iterrows():
-            status_val = str(row.iloc[23]) if row.iloc[23] else ""
+            # status is now col 1
+            status_val = str(row.iloc[1]) if row.iloc[1] else ""
             row_bg = QColor(STATUS_COLORS.get(status_val, DEFAULT_COLOR))
 
             items = []
@@ -271,6 +291,7 @@ class EditTab(QWidget, LoadingMixin):
             self.model.appendRow(items)
 
         self.model.itemChanged.connect(self._on_item_changed)
+        self._changed_rows.clear()  # Reset changed rows after load
 
         # Create table
         if self.table:
@@ -288,16 +309,19 @@ class EditTab(QWidget, LoadingMixin):
         self.table.setItemDelegate(ComboDelegate(self.table, data))
         self.table.frozen.setItemDelegate(ComboDelegate(self.table.frozen, data))
 
-        self.table.setItemDelegateForColumn(2, DateDelegate(self.table))
-        self.table.frozen.setItemDelegateForColumn(2, DateDelegate(self.table.frozen))
+        # Date delegate for request_date (col 3)
+        self.table.setItemDelegateForColumn(3, DateDelegate(self.table))
+        self.table.frozen.setItemDelegateForColumn(3, DateDelegate(self.table.frozen))
 
         dd = DateDelegate(self.table)
         for col in self.DATE_COLS:
             if col >= 4:
                 self.table.setItemDelegateForColumn(col, dd)
 
-        self.table.setItemDelegateForColumn(20, RecipeDelegate(self.table))
-        self.table.setItemDelegateForColumn(27, NoEditDelegate(self.table))
+        # RecipeDelegate for test_condition (col 22), references equip_no (col 20)
+        self.table.setItemDelegateForColumn(22, RecipeDelegate(self.table, equip_col=20))
+        # NoEditDelegate for logfile (col 28)
+        self.table.setItemDelegateForColumn(28, NoEditDelegate(self.table))
 
     def _setup_column_widths(self):
         """Setup column widths"""
@@ -307,17 +331,20 @@ class EditTab(QWidget, LoadingMixin):
             width = 120 if i > 0 else 50
             self.table.setColumnWidth(i, width)
             self.table.frozen.setColumnWidth(i, width)
-        h.setSectionResizeMode(29, QHeaderView.ResizeMode.Stretch)
+        h.setSectionResizeMode(30, QHeaderView.ResizeMode.Stretch)  # note column
 
     def _on_item_changed(self, item):
         """Handle item change"""
+        # Track changed row
+        self._changed_rows.add(item.row())
+
         if not item.text().strip():
             item.setBackground(QColor("#FFF9C4"))
         else:
             item.setBackground(QColor("white"))
 
-        # Auto-fill equipment name
-        if item.column() == 18:
+        # Auto-fill equipment name (equip_no is col 20, equip_name is col 21)
+        if item.column() == 20:
             equip_no = item.text().strip()
             if equip_no:
                 try:
@@ -327,16 +354,17 @@ class EditTab(QWidget, LoadingMixin):
                     )
                     if rows:
                         self.model.blockSignals(True)
-                        self.model.setItem(item.row(), 19, QStandardItem(rows[0][0]))
+                        self.model.setItem(item.row(), 21, QStandardItem(rows[0][0]))
                         self.model.blockSignals(False)
                 except Exception:
                     pass
 
     def _handle_double_click(self, index):
         """Handle double click for log file selection"""
-        if index.column() == 27:
+        # logfile is col 28
+        if index.column() == 28:
             row = index.row()
-            req_no = self.model.item(row, 1).text().strip()
+            req_no = self.model.item(row, 2).text().strip()  # request_no is col 2
 
             if not req_no:
                 return QMessageBox.warning(self, "Lỗi", "Cần có Mã Yêu Cầu!")
@@ -349,6 +377,7 @@ class EditTab(QWidget, LoadingMixin):
                     dest_path = os.path.join(dest_dir, os.path.basename(fname))
                     shutil.copy(fname, dest_path)
 
+                    # logfile is col 28, log_link is col 29
                     self.model.item(row, 28).setText(os.path.basename(fname))
                     self.model.item(row, 29).setText(dest_path)
 
@@ -357,11 +386,18 @@ class EditTab(QWidget, LoadingMixin):
                     QMessageBox.critical(self, "Lỗi", str(e))
 
     def _save(self):
-        """Save all changes"""
+        """Save only changed rows"""
+        if not self._changed_rows:
+            QMessageBox.information(self, "Thông báo", "Không có thay đổi để lưu!")
+            return
+
         try:
             updated_count = 0
             with self.db.get_cursor() as cursor:
-                for r in range(self.model.rowCount()):
+                for r in self._changed_rows:
+                    if r >= self.model.rowCount():
+                        continue
+
                     row_data = [
                         self.model.item(r, c).text() if self.model.item(r, c) else ""
                         for c in range(self.model.columnCount())
@@ -371,24 +407,29 @@ class EditTab(QWidget, LoadingMixin):
                     if not record_id:
                         continue
 
+                    # Column order: id, status, request_no, request_date, requester, factory, project,
+                    # phase, category, detail, qty, cos, hcross, xcross, func_test,
+                    # cos_res, xhatch_res, xsection_res, func_res, final_res,
+                    # equip_no, equip_name, test_condition, plan_start, plan_end, dri,
+                    # actual_start, actual_end, logfile, log_link, note
                     cursor.execute("""
                         UPDATE requests SET
-                            request_no=?, request_date=?, requester=?, factory=?,
-                            project=?, phase=?, category=?, qty=?,
-                            cos=?, cos_res=?, hcross=?, xhatch_res=?, xcross=?,
-                            xsection_res=?, func_test=?, func_res=?, final_res=?,
+                            status=?, request_no=?, request_date=?, requester=?, factory=?,
+                            project=?, phase=?, category=?, detail=?, qty=?,
+                            cos=?, hcross=?, xcross=?, func_test=?,
+                            cos_res=?, xhatch_res=?, xsection_res=?, func_res=?, final_res=?,
                             equip_no=?, equip_name=?, test_condition=?,
-                            plan_start=?, plan_end=?, status=?, dri=?,
+                            plan_start=?, plan_end=?, dri=?,
                             actual_start=?, actual_end=?, logfile=?, log_link=?, note=?
                         WHERE id=?
                     """, (
-                        row_data[1], row_data[2], row_data[3], row_data[4],
-                        row_data[5], row_data[6], row_data[7], row_data[8],
-                        row_data[9], row_data[10], row_data[11], row_data[12], row_data[13],
-                        row_data[14], row_data[15], row_data[16], row_data[17],
-                        row_data[18], row_data[19], row_data[20],
-                        row_data[21], row_data[22], row_data[23], row_data[24],
-                        row_data[25], row_data[26], row_data[27], row_data[28], row_data[29],
+                        row_data[1], row_data[2], row_data[3], row_data[4], row_data[5],
+                        row_data[6], row_data[7], row_data[8], row_data[9], row_data[10],
+                        row_data[11], row_data[12], row_data[13], row_data[14],
+                        row_data[15], row_data[16], row_data[17], row_data[18], row_data[19],
+                        row_data[20], row_data[21], row_data[22],
+                        row_data[23], row_data[24], row_data[25],
+                        row_data[26], row_data[27], row_data[28], row_data[29], row_data[30],
                         record_id
                     ))
                     updated_count += 1
@@ -399,8 +440,8 @@ class EditTab(QWidget, LoadingMixin):
             if updated_count > 0:
                 get_event_bus().emit_request_updated("batch")
 
-            QMessageBox.information(self, "Thành công", "Đã lưu!")
-            self._load_data()
+            self._changed_rows.clear()
+            QMessageBox.information(self, "Thành công", f"Đã lưu {updated_count} bản ghi!")
 
         except Exception as e:
             logger.error(f"Failed to save: {e}", exc_info=True)
@@ -441,4 +482,61 @@ class EditTab(QWidget, LoadingMixin):
 
             except Exception as e:
                 QMessageBox.critical(self, "Lỗi", str(e))
+
+    def _delete_selected(self):
+        """Delete selected rows"""
+        selection = self.table.selectionModel()
+        if not selection or not selection.hasSelection():
+            return QMessageBox.warning(self, "Chọn bản ghi", "Vui lòng chọn bản ghi cần xóa!")
+
+        selected_rows = set()
+        for index in selection.selectedRows():
+            selected_rows.add(index.row())
+
+        if not selected_rows:
+            return QMessageBox.warning(self, "Chọn bản ghi", "Vui lòng chọn bản ghi cần xóa!")
+
+        # Get request_no for confirmation
+        request_nos = []
+        ids_to_delete = []
+        for row in selected_rows:
+            record_id = self.model.item(row, 0).text() if self.model.item(row, 0) else ""
+            request_no = self.model.item(row, 2).text() if self.model.item(row, 2) else ""
+            if record_id:
+                ids_to_delete.append(record_id)
+                request_nos.append(request_no or record_id)
+
+        if not ids_to_delete:
+            return
+
+        count = len(ids_to_delete)
+        confirm = QMessageBox.question(
+            self, "Xác nhận xóa",
+            f"Bạn có chắc muốn xóa {count} bản ghi?\n\n" +
+            "\n".join(request_nos[:10]) + ("\n..." if count > 10 else ""),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            deleted = 0
+            with self.db.get_cursor() as cursor:
+                for record_id in ids_to_delete:
+                    cursor.execute("DELETE FROM requests WHERE id = ?", (record_id,))
+                    deleted += 1
+
+            logger.info(f"Deleted {deleted} records")
+            log_audit("DATA_DELETE", details=f"Deleted {deleted} records: {', '.join(request_nos[:5])}")
+
+            if deleted > 0:
+                get_event_bus().emit_request_deleted("batch")
+
+            QMessageBox.information(self, "Thành công", f"Đã xóa {deleted} bản ghi!")
+            self._load_data()
+
+        except Exception as e:
+            logger.error(f"Failed to delete: {e}", exc_info=True)
+            QMessageBox.critical(self, "Lỗi", str(e))
 

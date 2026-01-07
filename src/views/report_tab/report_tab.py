@@ -116,6 +116,9 @@ class ReportTab(QWidget, LoadingMixin):
         self.r1_table = QTableView()
         self.r1_table.setStyleSheet(TABLE_STYLE)
         self.r1_table.setAlternatingRowColors(True)
+        self.r1_table.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
+        self.r1_table.setSelectionMode(QTableView.SelectionMode.ExtendedSelection)
+        self.r1_table.verticalHeader().setVisible(False)
         layout.addWidget(self.r1_table)
 
         return widget
@@ -212,10 +215,19 @@ class ReportTab(QWidget, LoadingMixin):
             QDateEdit {
                 border: 1px solid #CFD8DC; border-radius: 6px;
                 padding: 6px 12px; background-color: #FFFFFF;
-                min-height: 32px; font-size: 13px;
+                min-height: 32px; font-size: 13px; color: #212121;
             }
-            QDateEdit:hover { border-color: #90CAF9; }
+            QDateEdit:hover { border-color: #90CAF9; background-color: #FAFEFF; }
             QDateEdit:focus { border: 2px solid #1565C0; }
+            QDateEdit::drop-down { border: none; width: 24px; }
+            QCalendarWidget QAbstractItemView {
+                background-color: #FFFFFF; color: #212121;
+                selection-background-color: #1565C0; selection-color: white;
+            }
+            QCalendarWidget QWidget { background-color: #FFFFFF; color: #212121; }
+            QCalendarWidget QToolButton { color: #1565C0; background: #E3F2FD; border-radius: 4px; }
+            QCalendarWidget QToolButton:hover { background: #BBDEFB; }
+            QCalendarWidget QSpinBox { color: #212121; background: #FFFFFF; }
         """
 
     def _combo_style(self):
@@ -223,10 +235,16 @@ class ReportTab(QWidget, LoadingMixin):
             QComboBox {
                 border: 1px solid #CFD8DC; border-radius: 6px;
                 padding: 6px 12px; background-color: #FFFFFF;
-                min-height: 32px; font-size: 13px;
+                min-height: 32px; font-size: 13px; color: #212121;
             }
-            QComboBox:hover { border-color: #90CAF9; }
+            QComboBox:hover { border-color: #90CAF9; background-color: #FAFEFF; }
             QComboBox:focus { border: 2px solid #1565C0; }
+            QComboBox::drop-down { border: none; width: 24px; }
+            QComboBox QAbstractItemView {
+                background-color: #FFFFFF; color: #212121;
+                selection-background-color: #E3F2FD; selection-color: #1565C0;
+                border: 1px solid #BBDEFB;
+            }
         """
 
     def _load_requesters(self):

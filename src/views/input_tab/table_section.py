@@ -9,29 +9,29 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem
 
-from src.styles import BTN_STYLE_BLUE, BTN_STYLE_GREEN, TABLE_STYLE
+from src.styles import BTN_STYLE_BLUE, BTN_STYLE_GREEN, BTN_STYLE_RED, BTN_STYLE_ORANGE, TABLE_STYLE
 
 
 class TableSection:
     """Helper class để tạo phần bảng và toolbar với giao diện đẹp"""
 
     TABLE_HEADERS = [
-        "Mã YC", "Ngày YC", "Người YC", "Nhà Máy", "Dự Án", "Giai Đoạn",
+        "STT", "Mã YC", "Ngày YC", "Người YC", "Nhà Máy", "Dự Án", "Giai Đoạn",
         "Mã TB", "Tên TB", "ĐK Test", "Vào KH", "Ra KH", "Vào TT", "Ra TT",
         "Trạng Thái", "DRI", "KQ Cuối"
     ]
 
-    # Map search field index to column index
+    # Map search field index to column index (shifted +1 for STT)
     SEARCH_FIELD_MAP = {
         0: None,  # Tất cả
-        1: 0,     # Mã YC
-        2: 2,     # Người YC
-        3: 3,     # Nhà Máy
-        4: 4,     # Dự Án
-        5: 6,     # Mã TB
-        6: 7,     # Tên TB
-        7: 13,    # Trạng Thái
-        8: 14     # DRI
+        1: 1,     # Mã YC
+        2: 3,     # Người YC
+        3: 4,     # Nhà Máy
+        4: 5,     # Dự Án
+        5: 7,     # Mã TB
+        6: 8,     # Tên TB
+        7: 14,    # Trạng Thái
+        8: 15     # DRI
     }
 
     # Toolbar frame style - gradient đẹp
@@ -53,7 +53,8 @@ class TableSection:
         self.txt_search = None
 
     def build_toolbar(self, parent_layout, on_filter, on_search,
-                      on_template, on_import, on_export):
+                      on_template, on_import, on_export,
+                      on_edit=None, on_delete=None):
         """Tạo toolbar với filter và search - giao diện đẹp"""
         frame = QFrame()
         frame.setObjectName("ToolbarFrame")
@@ -128,9 +129,29 @@ class TableSection:
 
         layout.addLayout(search_section)
 
-        # ===== RIGHT SECTION: Import/Export =====
+        # ===== RIGHT SECTION: Edit/Delete + Import/Export =====
         layout.addStretch()
         layout.addWidget(self._create_separator())
+
+        # Edit/Delete buttons
+        if on_edit:
+            btn_edit = QPushButton("✏️ Sửa")
+            btn_edit.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_edit.setStyleSheet(BTN_STYLE_ORANGE)
+            btn_edit.setToolTip("Sửa bản ghi đã chọn")
+            btn_edit.clicked.connect(on_edit)
+            layout.addWidget(btn_edit)
+
+        if on_delete:
+            btn_delete = QPushButton("🗑️ Xóa")
+            btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_delete.setStyleSheet(BTN_STYLE_RED)
+            btn_delete.setToolTip("Xóa bản ghi đã chọn")
+            btn_delete.clicked.connect(on_delete)
+            layout.addWidget(btn_delete)
+
+        if on_edit or on_delete:
+            layout.addWidget(self._create_separator())
 
         # Import/Export buttons with better styling
         btn_template = QPushButton("📄 Mẫu")
@@ -175,7 +196,7 @@ class TableSection:
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().hide()
         self.table.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QTableView.SelectionMode.SingleSelection)
+        self.table.setSelectionMode(QTableView.SelectionMode.ExtendedSelection)
 
         table_layout.addWidget(self.table)
         parent_layout.addWidget(table_frame, stretch=2)
@@ -186,15 +207,20 @@ class TableSection:
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(self.TABLE_HEADERS)
 
-        for row in rows:
-            items = [QStandardItem(str(v) if v else "") for v in row]
+        for idx, row in enumerate(rows, start=1):
+            stt_item = QStandardItem(str(idx))
+            stt_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            items = [stt_item] + [QStandardItem(str(v) if v else "") for v in row]
             model.appendRow(items)
 
         self.table.setModel(model)
 
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(8, QHeaderView.ResizeMode.Stretch)
+
+        # Set STT column width
+        self.table.setColumnWidth(0, 45)
 
     def filter_table(self, search_text: str):
         """Lọc bảng theo từ khóa"""
@@ -227,6 +253,26 @@ class TableSection:
     def get_filter_index(self) -> int:
         """Lấy index của filter hiện tại"""
         return self.cb_filter.currentIndex() if self.cb_filter else 1
+
+    def get_selected_request_nos(self) -> list:
+        """Lấy danh sách request_no đã chọn"""
+        selected = []
+        model = self.table.model()
+        if not model:
+            return selected
+
+        selection = self.table.selectionModel()
+        if not selection:
+            return selected
+
+        for index in selection.selectedRows():
+            row = index.row()
+            # Cột 1 là Mã YC (sau cột STT)
+            item = model.item(row, 1)
+            if item:
+                selected.append(item.text())
+
+        return selected
 
     def _create_separator(self):
         """Tạo separator dọc đẹp"""

@@ -261,37 +261,47 @@ TOOLBAR_FRAME_STYLE = """
 # ========== TABLE STYLE ==========
 TABLE_STYLE = """
     QTableView {
-        border: 1px solid #E0E0E0;
-        border-radius: 6px;
-        gridline-color: #E8EBF0;
+        border: 1px solid #BBDEFB;
+        border-radius: 8px;
+        gridline-color: #E3F2FD;
         background-color: white;
-        alternate-background-color: #F8FAFC;
-        selection-background-color: #E3F2FD;
+        alternate-background-color: #F8FBFF;
+        selection-background-color: #BBDEFB;
         selection-color: #1565C0;
         font-size: 13px;
         color: #212121;
     }
     QTableView::item {
         padding: 8px 12px;
-        border-bottom: 1px solid #E8EBF0;
+        border-bottom: 1px solid #E3F2FD;
         color: #212121;
     }
     QTableView::item:selected {
-        background-color: #E3F2FD;
+        background-color: #BBDEFB;
         color: #1565C0;
     }
+    QTableView::item:hover {
+        background-color: #E3F2FD;
+    }
     QHeaderView::section {
-        background-color: #E8F0FE;
-        color: #212121;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #E3F2FD, stop:0.5 #BBDEFB, stop:1 #E3F2FD);
+        color: #1565C0;
         padding: 10px 12px;
         border: none;
-        border-right: 1px solid #E0E0E0;
-        border-bottom: 2px solid #BBDEFB;
+        border-right: 1px solid #90CAF9;
+        border-bottom: 2px solid #1565C0;
         font-weight: 600;
         font-size: 13px;
     }
     QHeaderView::section:hover {
-        background-color: #BBDEFB;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #BBDEFB, stop:0.5 #90CAF9, stop:1 #BBDEFB);
+    }
+    QTableView QTableCornerButton::section {
+        background: #E3F2FD;
+        border: none;
+        border-bottom: 2px solid #1565C0;
     }
 """
 

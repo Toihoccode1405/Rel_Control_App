@@ -195,6 +195,10 @@ class MainWindow(QMainWindow):
         # Connect tab change signal for lazy loading
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
+        # Connect edit_request event to navigate to edit tab
+        from src.services.data_event_bus import get_event_bus
+        get_event_bus().edit_request.connect(self._on_edit_request)
+
         self.setCentralWidget(self.tabs)
         logger.info("Main window tabs initialized with lazy loading")
 
@@ -220,6 +224,19 @@ class MainWindow(QMainWindow):
             if not lazy_tab.is_loaded:
                 logger.info(f"Loading tab at index {index}")
                 lazy_tab.ensure_loaded()
+
+    def _on_edit_request(self, request_no: str):
+        """Handle edit_request event - switch to edit tab"""
+        # Switch to edit tab (index 1)
+        self.tabs.setCurrentIndex(1)
+
+        # Ensure edit tab is loaded
+        if 1 in self._lazy_tabs:
+            lazy_tab = self._lazy_tabs[1]
+            if not lazy_tab.is_loaded:
+                lazy_tab.ensure_loaded()
+
+        logger.info(f"Navigated to edit tab for request: {request_no}")
 
     def _logout(self):
         """Handle logout"""

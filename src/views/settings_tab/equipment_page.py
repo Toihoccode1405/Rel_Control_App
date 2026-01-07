@@ -84,8 +84,11 @@ class EquipmentPage(QWidget):
         # Table
         self.table = QTableView()
         self.table.setStyleSheet(TABLE_STYLE)
+        self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.verticalHeader().setVisible(False)
         layout.addWidget(self.table)
 
     def _load(self, table=None):

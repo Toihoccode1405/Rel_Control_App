@@ -52,6 +52,10 @@ class DataEventBus(QObject):
     # ========== General Events ==========
     # Emitted to request full data refresh
     data_refresh_needed = pyqtSignal()
+
+    # ========== Navigation Events ==========
+    # Emitted to navigate to edit tab with specific request
+    edit_request = pyqtSignal(str)  # request_no
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -96,6 +100,11 @@ class DataEventBus(QObject):
         """Emit data_refresh_needed signal with logging"""
         logger.debug("Event: data_refresh_needed()")
         self.data_refresh_needed.emit()
+
+    def emit_edit_request(self, request_no: str):
+        """Emit edit_request signal to navigate to edit tab"""
+        logger.debug(f"Event: edit_request({request_no})")
+        self.edit_request.emit(request_no)
 
 
 # ========== Module-level accessor ==========
